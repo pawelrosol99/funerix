@@ -10,8 +10,8 @@ import { AdminUsers } from './views/AdminUsers';
 import { AdminCompanies } from './views/AdminCompanies'; 
 import { AdminThemes } from './views/AdminThemes';
 import { AdminManufacturers } from './views/AdminManufacturers';
-import { AdminBulletinCategories } from './views/AdminBulletinCategories'; // NEW IMPORT
-import { BulletinBoard } from './views/BulletinBoard'; // NEW IMPORT
+import { AdminBulletinCategories } from './views/AdminBulletinCategories';
+import { BulletinBoard } from './views/BulletinBoard';
 import { ClientPanel } from './views/ClientPanel';
 import { ClientUrneoStore } from './views/ClientUrneoStore';
 import { CompanyPanel } from './views/CompanyPanel';
@@ -23,12 +23,10 @@ import { Warehouse } from './components/Warehouse';
 import { BranchAdminPanel } from './views/BranchAdminPanel'; 
 import { DEFAULT_THEME_CSS } from './constants';
 import { Toaster, toast } from 'sonner';
-import { Button, Card } from './components/UI';
-import { ArrowLeft, Construction } from 'lucide-react';
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [currentView, setCurrentView] = useState('landing'); // Default to landing
+  const [currentView, setCurrentView] = useState('landing');
   const [theme, setTheme] = useState<Theme>(DEFAULT_THEME_CSS);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -77,7 +75,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     refreshBranches();
-  }, [currentUser]); // Simplified ref to avoid loop
+  }, [currentUser]);
 
   // Inject CSS Variables
   useEffect(() => {
@@ -151,7 +149,7 @@ const App: React.FC = () => {
     logoutUser();
     setCurrentUser(null);
     setCompanyBranches([]);
-    setCurrentView('landing'); // Return to landing on logout
+    setCurrentView('landing'); 
   };
 
   const handleToggleLayout = () => {
@@ -181,7 +179,7 @@ const App: React.FC = () => {
      const impostorUser: User = {
         ...currentUser,
         companyId: companyId,
-        companyRole: 'owner', // Grant full access within company
+        companyRole: 'owner', 
         branchId: branchId
      };
      setCurrentUser(impostorUser);
@@ -204,7 +202,7 @@ const App: React.FC = () => {
         };
         setCurrentUser(adminUser);
         setCompanyBranches([]);
-        setCurrentView('admin-companies'); // Return to companies list
+        setCurrentView('admin-companies'); 
         toast.info('Powrócono do panelu Super Admina');
      }
   };
@@ -214,7 +212,6 @@ const App: React.FC = () => {
   }
 
   // --- PUBLIC ROUTING ---
-  // If not logged in, only allow Landing and Auth and Bulletin
   if (!currentUser) {
     if (currentView === 'bulletin-board') {
        return <BulletinBoard user={null} onNavigate={setCurrentView} />;
@@ -238,7 +235,7 @@ const App: React.FC = () => {
       case 'admin-companies': return <AdminCompanies onEnterCompany={handleAdminEnterCompany} />;
       case 'manufacturers': return <AdminManufacturers />;
       case 'themes': return <AdminThemes currentTheme={theme} onThemeUpdate={setTheme} setGlobalDarkMode={setIsDarkMode} />;
-      case 'admin-bulletin-categories': return <AdminBulletinCategories />; // Admin view for categories
+      case 'admin-bulletin-categories': return <AdminBulletinCategories />; 
       
       case 'client-dashboard': return <ClientPanel user={currentUser} onUpdateUser={setCurrentUser} />;
       case 'store': return <ClientUrneoStore user={currentUser} onCompanyCreated={handleCompanyCreated} />;
@@ -254,7 +251,6 @@ const App: React.FC = () => {
             <Warehouse companyId={currentUser.companyId!} currentBranchId={currentBranchId} />
          </div>
       );
-      // Protected access to Bulletin Board
       case 'bulletin-board': return <BulletinBoard user={currentUser} onNavigate={setCurrentView} />;
       
       default: return <div className="text-center p-10">Widok nieznany</div>;
