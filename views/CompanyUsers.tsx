@@ -12,7 +12,7 @@ interface CompanyUsersProps {
 }
 
 export const CompanyUsers: React.FC<CompanyUsersProps> = ({ user, currentBranchId = 'all' }) => {
-  if (!user.companyId) return <div>Błąd: Brak przypisanej firmy.</div>;
+  if (!user.companyId) return <div>Brak dostępu.</div>;
 
   const [activeTab, setActiveTab] = useState<'employees' | 'invitations'>('employees');
   const [employees, setEmployees] = useState<User[]>([]);
@@ -388,7 +388,7 @@ export const CompanyUsers: React.FC<CompanyUsersProps> = ({ user, currentBranchI
                                   </span>
                                   {hasPendingEdit && session.editedStartTime && (
                                      <span className="block font-bold text-yellow-600">
-                                        -> {new Date(session.editedStartTime).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
+                                        &rarr; {new Date(session.editedStartTime).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
                                      </span>
                                   )}
                                </div>
@@ -399,7 +399,7 @@ export const CompanyUsers: React.FC<CompanyUsersProps> = ({ user, currentBranchI
                                   </span>
                                   {hasPendingEdit && session.editedEndTime && (
                                      <span className="block font-bold text-yellow-600">
-                                        -> {new Date(session.editedEndTime).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
+                                        &rarr; {new Date(session.editedEndTime).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
                                      </span>
                                   )}
                                </div>
