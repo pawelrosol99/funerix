@@ -23,6 +23,7 @@ import { Warehouse } from './components/Warehouse';
 import { BranchAdminPanel } from './views/BranchAdminPanel'; 
 import { DEFAULT_THEME_CSS } from './constants';
 import { Toaster, toast } from 'sonner';
+import { ShieldAlert } from 'lucide-react';
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -227,17 +228,33 @@ const App: React.FC = () => {
     );
   }
 
+  // Helper for Protected Admin Routes
+  const ProtectedAdminRoute = ({ children }: { children: React.ReactNode }) => {
+     if (currentUser.role !== 'super_admin') {
+        return (
+           <div className="flex flex-col items-center justify-center h-[60vh] text-center">
+              <div className="p-4 bg-red-100 text-red-500 rounded-full mb-4"><ShieldAlert size={48}/></div>
+              <h2 className="text-2xl font-bold mb-2">Brak Dostępu</h2>
+              <p className="text-[var(--color-text-secondary)]">Ta sekcja jest dostępna tylko dla Super Administratora.</p>
+           </div>
+        );
+     }
+     return <>{children}</>;
+  };
+
   // --- PROTECTED ROUTING ---
   const renderView = () => {
     switch (currentView) {
-      case 'dashboard': return <AdminDashboard />;
-      case 'users': return <AdminUsers />;
-      case 'admin-companies': return <AdminCompanies onEnterCompany={handleAdminEnterCompany} />;
-      case 'manufacturers': return <AdminManufacturers />;
-      case 'themes': return <AdminThemes currentTheme={theme} onThemeUpdate={setTheme} setGlobalDarkMode={setIsDarkMode} />;
-      case 'admin-bulletin-categories': return <AdminBulletinCategories />; 
+      // Super Admin Views
+      case 'dashboard': return <ProtectedAdminRoute><AdminDashboard /></ProtectedAdminRoute>;
+      case 'users': return <ProtectedAdminRoute><AdminUsers /></ProtectedAdminRoute>;
+      case 'admin-companies': return <ProtectedAdminRoute><AdminCompanies onEnterCompany={handleAdminEnterCompany} /></ProtectedAdminRoute>;
+      case 'manufacturers': return <ProtectedAdminRoute><AdminManufacturers /></ProtectedAdminRoute>;
+      case 'themes': return <ProtectedAdminRoute><AdminThemes currentTheme={theme} onThemeUpdate={setTheme} setGlobalDarkMode={setIsDarkMode} /></ProtectedAdminRoute>;
+      case 'admin-bulletin-categories': return <ProtectedAdminRoute><AdminBulletinCategories /></ProtectedAdminRoute>; 
       
-      case 'client-dashboard': return <ClientPanel user={currentUser} onUpdateUser={setCurrentUser} />;
+      // Client/Employee Views
+      case 'client-dashboard': return <ClientPanel user={currentUser} onUpdateUser={setCurrentUser} onChangeView={setCurrentView} />;
       case 'store': return <ClientUrneoStore user={currentUser} onCompanyCreated={handleCompanyCreated} />;
       case 'company-panel': return <CompanyPanel user={currentUser} onBranchesChange={refreshBranches} />;
       case 'company-users': return <CompanyUsers user={currentUser} currentBranchId={currentBranchId} />;
