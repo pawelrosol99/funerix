@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Card, Button, Input, Badge } from '../components/UI';
 import { User, Company } from '../types';
 import { createCompany } from '../services/storageService';
-import { Check, Store, ShieldCheck, Flame, Layers, Cross } from 'lucide-react';
+import { Check, Store, ShieldCheck, Flame, Layers, Cross, Image as ImageIcon } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface ClientUrneoStoreProps {
@@ -23,6 +23,7 @@ export const ClientUrneoStore: React.FC<ClientUrneoStoreProps> = ({ user, onComp
     city: '',
     zip_code: '',
     phone: '',
+    photo_url: '',
   });
 
   const handleSelectPackage = (pkg: PackageType) => {
@@ -33,6 +34,19 @@ export const ClientUrneoStore: React.FC<ClientUrneoStoreProps> = ({ user, onComp
 
   const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+     if(e.target.files && e.target.files[0]) {
+        const file = e.target.files[0];
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+           if(ev.target?.result) {
+              setFormData(prev => ({ ...prev, photo_url: ev.target!.result as string }));
+           }
+        };
+        reader.readAsDataURL(file);
+     }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -145,7 +159,7 @@ export const ClientUrneoStore: React.FC<ClientUrneoStoreProps> = ({ user, onComp
   }
 
   return (
-    <div className="max-w-2xl mx-auto animate-fade-in">
+    <div className="max-w-3xl mx-auto animate-fade-in">
        <Button variant="ghost" onClick={() => setStep('selection')} className="mb-6">Wróć do wyboru pakietu</Button>
        
        <Card>
@@ -155,6 +169,31 @@ export const ClientUrneoStore: React.FC<ClientUrneoStoreProps> = ({ user, onComp
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
+             {/* Logo Upload Section */}
+             <div className="flex justify-center mb-6">
+                <div className="relative w-32 h-32 bg-[var(--color-secondary)] rounded-2xl flex items-center justify-center border-2 border-dashed border-[var(--color-border)] cursor-pointer hover:border-[var(--color-primary)] transition-all overflow-hidden group">
+                   {formData.photo_url ? (
+                      <img src={formData.photo_url} alt="Logo" className="w-full h-full object-cover" />
+                   ) : (
+                      <div className="text-center text-[var(--color-text-secondary)]">
+                         <ImageIcon size={32} className="mx-auto mb-2 opacity-50"/>
+                         <span className="text-xs font-bold">Wgraj Logo</span>
+                      </div>
+                   )}
+                   <input 
+                      type="file" 
+                      accept="image/*" 
+                      onChange={handleLogoUpload} 
+                      className="absolute inset-0 opacity-0 cursor-pointer"
+                   />
+                   {formData.photo_url && (
+                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                         <span className="text-white text-xs font-bold">Zmień</span>
+                      </div>
+                   )}
+                </div>
+             </div>
+
              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Input label="NIP" name="nip" value={formData.nip} onChange={handleFormChange} />
                 <Input label="Nazwa Firmy (Wymagane)" name="name" value={formData.name} onChange={handleFormChange} required />

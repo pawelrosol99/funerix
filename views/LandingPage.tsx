@@ -1,11 +1,11 @@
 
-import React from 'react';
-import { Button, Badge } from '../components/UI';
+import React, { useState } from 'react';
+import { Button, Badge, Card } from '../components/UI';
 import { 
   ArrowRight, LayoutDashboard, ShieldCheck, 
   Globe, Clock, CheckCircle2,
   Flame, Bell, Menu, User,
-  Calendar, Layers, Check, Briefcase, Coins, ShoppingBag
+  Calendar, Layers, Check, Briefcase, Coins, ShoppingBag, X, FileText, Scale
 } from 'lucide-react';
 
 interface LandingPageProps {
@@ -13,6 +13,8 @@ interface LandingPageProps {
 }
 
 export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
+  const [showTerms, setShowTerms] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
   // --- REAL APP MOCKUPS ---
 
@@ -207,12 +209,88 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
     </div>
   );
 
+  // --- TERMS MODAL COMPONENT ---
+  const TermsModal = () => (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fade-in">
+       <Card className="w-full max-w-4xl h-[85vh] flex flex-col p-0 overflow-hidden relative border border-[#32FFDC] shadow-2xl">
+          <div className="p-5 border-b border-[#E5E0D5] bg-white flex justify-between items-center shrink-0">
+             <div>
+                <h2 className="text-xl font-bold flex items-center gap-2 text-[#232B32]">
+                   <Scale size={20} className="text-[#32FFDC]"/> Regulamin Aplikacji Urneo
+                </h2>
+                <p className="text-xs text-[#84705B]">Obowiązuje od 01.01.2025</p>
+             </div>
+             <button onClick={() => setShowTerms(false)} className="p-2 hover:bg-[#F5F4ED] rounded-full transition-colors">
+                <X size={20}/>
+             </button>
+          </div>
+          
+          <div className="flex-1 overflow-y-auto p-8 text-sm leading-relaxed text-[#493C31] custom-scrollbar bg-[#F5F4ED]">
+             <div className="prose prose-sm max-w-none">
+                <h3 className="font-bold text-lg mb-2">§ 1. Postanowienia Ogólne</h3>
+                <p className="mb-4">
+                   1. Niniejszy Regulamin określa zasady korzystania z systemu informatycznego "Urneo" (dalej: "Aplikacja") przeznaczonego dla podmiotów gospodarczych (B2B), w szczególności zakładów pogrzebowych i krematoriów.<br/>
+                   2. Operatorem Aplikacji jest firma Urneo Systems Sp. z o.o. (dalej: "Operator").<br/>
+                   3. Użytkownik, rejestrując konto w Aplikacji, oświadcza, że jest przedsiębiorcą w rozumieniu Kodeksu Cywilnego i korzysta z Aplikacji w celach bezpośrednio związanych z prowadzoną działalnością gospodarczą.
+                </p>
+
+                <h3 className="font-bold text-lg mb-2">§ 2. Świadczenie Usług (SaaS)</h3>
+                <p className="mb-4">
+                   1. Aplikacja jest udostępniana w modelu Software as a Service (SaaS). Operator udziela Użytkownikowi niewyłącznej, odpłatnej licencji na korzystanie z oprogramowania.<br/>
+                   2. Operator dokłada wszelkich starań, aby zapewnić ciągłość działania Aplikacji, jednak zastrzega sobie prawo do przerw technicznych.<br/>
+                   3. Operator nie gwarantuje nieprzerwanej dostępności usług i nie ponosi odpowiedzialności za przerwy w dostępie spowodowane czynnikami niezależnymi (np. awaria dostawcy Internetu, pożar serwerowni).
+                </p>
+
+                <h3 className="font-bold text-lg mb-2 text-red-600">§ 3. Ograniczenie Odpowiedzialności i Wyłączenia (Ważne)</h3>
+                <p className="mb-4 font-medium">
+                   1. Odpowiedzialność Operatora względem Użytkownika z tytułu niewykonania lub nienależytego wykonania usługi ograniczona jest wyłącznie do wysokości szkody rzeczywistej (damnum emergens). Odpowiedzialność z tytułu utraconych korzyści (lucrum cessans) zostaje całkowicie wyłączona.<br/>
+                   2. Całkowita, łączna odpowiedzialność Operatora z jakiegokolwiek tytułu (w tym kar umownych i odszkodowań) względem Użytkownika w danym roku kalendarzowym ograniczona jest do kwoty stanowiącej równowartość jednomiesięcznej opłaty abonamentowej uiszczanej przez tego Użytkownika.<br/>
+                   3. Operator nie ponosi odpowiedzialności za:<br/>
+                   a) szkody powstałe w wyniku dostępu osób nieuprawnionych do konta Użytkownika, jeśli nastąpiło to na skutek niedbalstwa Użytkownika (np. słabe hasło, udostępnienie danych logowania);<br/>
+                   b) utratę danych spowodowaną działaniem siły wyższej, atakiem hakerskim, wirusami lub innym złośliwym oprogramowaniem, mimo zastosowania przez Operatora standardowych środków bezpieczeństwa;<br/>
+                   c) błędy w działaniu Aplikacji wynikające z nieprawidłowego użytkowania przez Użytkownika.<br/>
+                   4. Rękojmia za wady fizyczne i prawne oprogramowania zostaje wyłączona w najszerszym zakresie dopuszczalnym przez prawo polskie.
+                </p>
+
+                <h3 className="font-bold text-lg mb-2">§ 4. Ochrona Danych i RODO (Powierzenie Przetwarzania)</h3>
+                <p className="mb-4">
+                   1. W zakresie danych osobowych wprowadzanych do Aplikacji przez Użytkownika (dane pracowników, klientów, osób zmarłych), Użytkownik jest Administratorem Danych Osobowych w rozumieniu RODO.<br/>
+                   2. Operator działa jako Podmiot Przetwarzający (Procesor) działający na zlecenie Administratora.<br/>
+                   3. Użytkownik oświadcza, że posiada podstawę prawną do przetwarzania danych wprowadzanych do systemu oraz do ich powierzenia Operatorowi.<br/>
+                   4. Użytkownik ponosi pełną odpowiedzialność za treść danych wprowadzanych do Aplikacji oraz za realizację obowiązków informacyjnych wobec osób, których dane dotyczą.
+                </p>
+
+                <h3 className="font-bold text-lg mb-2">§ 5. Bezpieczeństwo</h3>
+                <p className="mb-4">
+                   1. Użytkownik zobowiązany jest do zachowania w tajemnicy danych dostępowych do konta.<br/>
+                   2. Operator stosuje szyfrowanie połączeń (SSL) oraz mechanizmy kontroli dostępu, jednak Użytkownik przyjmuje do wiadomości, że żadna metoda transmisji przez Internet nie jest w 100% bezpieczna.
+                </p>
+
+                <h3 className="font-bold text-lg mb-2">§ 6. Postanowienia Końcowe</h3>
+                <p className="mb-4">
+                   1. W sprawach nieuregulowanych niniejszym Regulaminem zastosowanie mają przepisy prawa polskiego, w szczególności Kodeksu Cywilnego.<br/>
+                   2. Wszelkie spory wynikające z umowy będą rozstrzygane przez sąd właściwy dla siedziby Operatora.<br/>
+                   3. Rozpoczęcie korzystania z Aplikacji oznacza pełną akceptację niniejszego Regulaminu.
+                </p>
+             </div>
+          </div>
+          
+          <div className="p-4 border-t border-[#E5E0D5] bg-white flex justify-end">
+             <Button onClick={() => setShowTerms(false)}>Zamknij</Button>
+          </div>
+       </Card>
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-[#F5F4ED] text-[#493C31] font-sans overflow-x-hidden selection:bg-[#32FFDC] selection:text-[#232B32]">
       
+      {/* Show Terms Modal if active */}
+      {showTerms && <TermsModal />}
+
       {/* --- NAVBAR --- */}
       <nav className="fixed top-0 w-full z-50 bg-[#F5F4ED]/90 backdrop-blur-md border-b border-[#E5E0D5] shadow-sm">
-        <div className="max-w-7xl mx-auto px-6 h-24 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-6 h-20 md:h-24 flex items-center justify-between">
            <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-[1rem] bg-[#32FFDC] flex items-center justify-center text-[#232B32] shadow-sm">
                  <span className="font-sans font-bold text-xl">U</span>
@@ -223,25 +301,70 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
               </div>
            </div>
            
-           <div className="hidden md:flex items-center gap-8 text-sm font-bold text-[#84705B]">
+           {/* Desktop Menu */}
+           <div className="hidden lg:flex items-center gap-8 text-sm font-bold text-[#84705B]">
               <a href="#features" className="hover:text-[#493C31] transition-colors">Funkcje</a>
               <button onClick={() => onNavigate('bulletin-board')} className="hover:text-[#493C31] transition-colors flex items-center gap-1">
                  <ShoppingBag size={16}/> Giełda
               </button>
               <a href="#pricing" className="hover:text-[#493C31] transition-colors">Cennik</a>
-              <a href="#contact" className="hover:text-[#493C31] transition-colors">Kontakt</a>
+              <button onClick={() => setShowTerms(true)} className="hover:text-[#493C31] transition-colors flex items-center gap-1">
+                 <FileText size={16}/> Regulamin
+              </button>
            </div>
            
-           <div className="flex gap-3">
+           {/* Desktop Buttons */}
+           <div className="hidden lg:flex gap-3">
               <button onClick={() => onNavigate('auth')} className="px-6 py-3 rounded-[1rem] font-bold text-sm bg-[#493C31] text-[#F5F4ED] hover:bg-[#3a3027] shadow-lg hover:shadow-xl transition-all">
                  Zaloguj się
+              </button>
+           </div>
+
+           {/* Mobile Hamburger */}
+           <div className="lg:hidden">
+              <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 text-[#493C31]">
+                 <Menu size={28} />
               </button>
            </div>
         </div>
       </nav>
 
+      {/* --- MOBILE MENU OVERLAY --- */}
+      {isMobileMenuOpen && (
+         <div className="fixed inset-0 z-[60] bg-[#F5F4ED]/95 backdrop-blur-xl flex flex-col p-6 animate-fade-in">
+            <div className="flex justify-between items-center mb-10">
+               <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-[1rem] bg-[#32FFDC] flex items-center justify-center text-[#232B32] shadow-sm">
+                     <span className="font-sans font-bold text-xl">U</span>
+                  </div>
+                  <span className="font-sans font-bold text-xl leading-none text-[#493C31]">Urneo</span>
+               </div>
+               <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 bg-white rounded-full shadow-sm text-[#493C31]">
+                  <X size={24} />
+               </button>
+            </div>
+
+            <div className="flex-1 flex flex-col gap-6 text-xl font-bold text-[#493C31]">
+               <a href="#features" onClick={() => setIsMobileMenuOpen(false)} className="py-2 border-b border-[#E5E0D5]">Funkcje</a>
+               <button onClick={() => { onNavigate('bulletin-board'); setIsMobileMenuOpen(false); }} className="py-2 border-b border-[#E5E0D5] text-left flex items-center gap-3">
+                  <ShoppingBag size={20}/> Giełda
+               </button>
+               <a href="#pricing" onClick={() => setIsMobileMenuOpen(false)} className="py-2 border-b border-[#E5E0D5]">Cennik</a>
+               <button onClick={() => { setShowTerms(true); setIsMobileMenuOpen(false); }} className="py-2 border-b border-[#E5E0D5] text-left flex items-center gap-3">
+                  <FileText size={20}/> Regulamin
+               </button>
+            </div>
+
+            <div className="mt-8">
+               <button onClick={() => { onNavigate('auth'); setIsMobileMenuOpen(false); }} className="w-full py-4 rounded-[1.5rem] font-bold text-lg bg-[#493C31] text-[#F5F4ED] shadow-xl flex items-center justify-center gap-2">
+                  Zaloguj się <ArrowRight size={20} />
+               </button>
+            </div>
+         </div>
+      )}
+
       {/* --- HERO SECTION --- */}
-      <section className="relative pt-40 pb-20 md:pt-52 md:pb-32 px-6 overflow-hidden">
+      <section className="relative pt-32 pb-20 md:pt-52 md:pb-32 px-6 overflow-hidden">
          <div className="absolute top-[-10%] left-[-10%] w-[600px] h-[600px] bg-[#32FFDC] rounded-full mix-blend-multiply filter blur-[128px] opacity-20 animate-pulse-slow"></div>
          <div className="absolute bottom-[-10%] right-[-10%] w-[600px] h-[600px] bg-[#E5E0D5] rounded-full mix-blend-multiply filter blur-[128px] opacity-40 animate-pulse-slow delay-1000"></div>
 
@@ -445,9 +568,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
                <p className="text-[#84705B] text-sm mt-2">© 2035 Urneo Systems. Wszelkie prawa zastrzeżone.</p>
             </div>
             <div className="flex gap-8 text-sm font-bold text-[#84705B]">
+               <button onClick={() => setShowTerms(true)} className="hover:text-[#32FFDC] transition-colors">Regulamin</button>
                <a href="#" className="hover:text-[#32FFDC] transition-colors">Polityka Prywatności</a>
-               <a href="#" className="hover:text-[#32FFDC] transition-colors">Regulamin</a>
-               <a href="#" className="hover:text-[#32FFDC] transition-colors">Kontakt</a>
+               <a href="#contact" className="hover:text-[#32FFDC] transition-colors">Kontakt</a>
             </div>
          </div>
       </footer>

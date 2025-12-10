@@ -33,7 +33,10 @@ import {
   Grip,
   X,
   ChevronRight,
-  ChevronUp
+  ChevronUp,
+  CreditCard,
+  LogOut as LogoutIcon,
+  MoreVertical
 } from 'lucide-react';
 
 interface LayoutProps {
@@ -66,12 +69,8 @@ export const Layout: React.FC<LayoutProps> = ({
   onStopImpersonation
 }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   
-  // App Menu State - Category is needed, isOpen is removed as it's always open now
-  const [activeCategory, setActiveCategory] = useState<'company' | 'community' | 'admin'>('company');
-
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [company, setCompany] = useState<Company | null>(null);
   
@@ -156,9 +155,10 @@ export const Layout: React.FC<LayoutProps> = ({
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
-  // --- MENU ITEMS DEFINITION ---
+  // --- STRICT MENU ITEMS DEFINITION ---
 
-  const systemItems = [
+  // 1. Super Admin Menu (ONLY for Super Admin role)
+  const superAdminItems = [
       { icon: LayoutDashboard, label: 'Dashboard', view: 'dashboard', desc: 'Statystyki' },
       { icon: Users, label: 'Użytkownicy', view: 'users', desc: 'Baza kont' },
       { icon: Building2, label: 'Firmy', view: 'admin-companies', desc: 'Zarządzanie' },
@@ -167,146 +167,128 @@ export const Layout: React.FC<LayoutProps> = ({
       { icon: Palette, label: 'Motywy', view: 'themes', desc: 'Wygląd' },
   ];
 
-  let companyItems: {icon: any, label: string, view: string, desc?: string, color?: string}[] = [];
+  // 2. Client/Branch Menu (ONLY for Clients)
+  let clientItems: {icon: any, label: string, view: string, desc?: string, color?: string}[] = [];
+  
   if (user.companyId) {
+    // Only if user belongs to a company
     if (user.companyRole === 'owner') {
-       companyItems.push({ icon: Shield, label: 'Administrator', view: 'branch-admin-panel', desc: 'Oddział' });
+       clientItems.push({ icon: Shield, label: 'Administrator', view: 'branch-admin-panel', desc: 'Oddział' });
     }
-    companyItems.push({ icon: Briefcase, label: 'Pracownicy', view: 'company-users', desc: 'Kadry' });
+    clientItems.push({ icon: Briefcase, label: 'Pracownicy', view: 'company-users', desc: 'Kadry' });
+    
+    // Dynamic based on package
     if (company && (company.package_type === 'funerals' || company.package_type === 'full')) {
-       companyItems.push({ icon: Cross, label: 'Pogrzeby', view: 'funerals', desc: 'Ceremonie' });
+       clientItems.push({ icon: Cross, label: 'Pogrzeby', view: 'funerals', desc: 'Ceremonie' });
     }
     if (company && (company.package_type === 'cremation' || company.package_type === 'full')) {
-       companyItems.push({ icon: Flame, label: 'Kremacje', view: 'cremations', desc: 'Piece' });
+       clientItems.push({ icon: Flame, label: 'Kremacje', view: 'cremations', desc: 'Piece' });
     }
-    companyItems.push({ icon: Package, label: 'Magazyn', view: 'warehouse', desc: 'Stany' });
+    clientItems.push({ icon: Package, label: 'Magazyn', view: 'warehouse', desc: 'Stany' });
+    
+    // Settings always last in business section
     if (company && (company.package_type === 'cremation' || company.package_type === 'funerals' || company.package_type === 'full')) {
-       companyItems.push({ icon: Settings, label: 'Ustawienia', view: 'settings', desc: 'Konfiguracja' });
+       clientItems.push({ icon: Settings, label: 'Ustawienia', view: 'settings', desc: 'Konfiguracja' });
     }
   }
 
+  // 3. Community Items (For Clients, maybe Admin too if desired, but separating for now)
   const communityItems = [
      { icon: ShoppingBag, label: 'Giełda', view: 'bulletin-board', desc: 'Ogłoszenia' },
      { icon: ShoppingBag, label: 'Urneo Store', view: 'store', desc: 'Pakiety' },
      { icon: LayoutIcon, label: 'Panel Klienta', view: 'client-dashboard', desc: 'Start' }
   ];
 
-  const allItems = [...systemItems, ...companyItems, ...communityItems];
-  const currentItem = allItems.find(i => i.view === currentView);
+  // Logic to select which items to display
+  let displayItems = [];
+  
+  if (user.role === 'super_admin') {
+     // Admin sees ONLY Admin items. If they impersonate, they see client items.
+     if (isImpersonating) {
+        displayItems = [...clientItems, ...communityItems];
+     } else {
+        displayItems = superAdminItems;
+     }
+  } else {
+     // Regular client
+     displayItems = [...clientItems, ...communityItems];
+  }
+
+  const currentItem = displayItems.find(i => i.view === currentView);
 
   // --- COMPONENTS ---
 
-  const Sidebar = () => (
-    <aside className={`
-      fixed inset-y-0 left-0 z-50 w-80 bg-[var(--color-sidebar)] transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]
-      ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'} border-r border-[var(--color-border)]
-      ${isImpersonating ? 'top-14' : ''}
-      flex flex-col
-    `}>
-      <div className="flex-1 flex flex-col p-6 overflow-y-auto custom-scrollbar">
-         {/* Logo Area */}
-         <div className="mb-10 flex items-center gap-4 px-2">
-             <div className="w-10 h-10 rounded-[1rem] bg-[var(--color-primary)] flex items-center justify-center shadow-lg text-[var(--color-primary-foreground)]">
-               <span className="font-sans font-bold text-xl">U</span>
-             </div>
-             <div>
-                <h1 className="text-xl font-sans font-bold text-[var(--color-text-main)] leading-none tracking-tight">Urneo</h1>
-                <p className="text-[10px] font-bold text-[var(--color-text-secondary)] uppercase tracking-[0.2em] mt-1">System 2035</p>
-             </div>
-         </div>
-
-         {/* Navigation */}
-         <nav className="flex-1 space-y-1">
-            <div className="text-[10px] font-bold uppercase text-[var(--color-text-secondary)] mb-3 px-3 tracking-wider">Menu</div>
-            {[...companyItems, ...communityItems, ...systemItems].map(item => (
-               <button 
-                  key={item.view} 
-                  onClick={() => { onChangeView(item.view); setIsMobileMenuOpen(false); }} 
-                  className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-xl transition-all text-sm font-medium
-                     ${currentView === item.view 
-                        ? 'bg-[var(--color-surface)] text-[var(--color-primary)] shadow-sm' 
-                        : 'hover:bg-[var(--color-surface)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-main)]'}
-                  `}
-               >
-                  <item.icon size={18} className={currentView === item.view ? 'text-[var(--color-primary)]' : 'opacity-70'} /> 
-                  {item.label}
-               </button>
-            ))}
-         </nav>
-
-         {/* Bottom User Area (Restored) */}
-         <div className="mt-6 pt-4 border-t border-[var(--color-border)]">
-            
-            {/* User Profile Info */}
-            <div className="bg-[var(--color-surface)] bg-opacity-50 rounded-xl p-2 mb-3">
-               <div 
-                  className="flex items-center gap-3 p-2 rounded-lg cursor-pointer hover:bg-[var(--color-surface)] transition-colors group"
-                  onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
-               >
-                  <div className="w-9 h-9 rounded-full bg-[var(--color-primary)] flex items-center justify-center text-[var(--color-primary-foreground)] font-bold text-sm">
-                     {user.first_name[0]}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                     <div className="font-bold text-sm truncate leading-tight">{user.first_name} {user.last_name}</div>
-                     <div className="text-[10px] text-[var(--color-text-secondary)] truncate">{user.email}</div>
-                  </div>
-                  {isProfileMenuOpen ? <ChevronDown size={14}/> : <ChevronUp size={14}/>}
+  const Sidebar = () => {
+    return (
+      <aside 
+        className={`fixed inset-y-0 left-0 z-50 bg-[var(--color-sidebar)] border-r border-[var(--color-border)] transition-all duration-300 ease-in-out flex flex-col w-64
+          ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+          ${isImpersonating ? 'top-14' : ''}
+        `}
+      >
+        <div className="flex-1 flex flex-col py-6 overflow-x-hidden overflow-y-auto custom-scrollbar">
+           
+           {/* Logo Area */}
+           <div className="mb-8 flex items-center px-6 gap-3">
+               <div className="w-8 h-8 rounded-[0.8rem] bg-[var(--color-primary)] flex items-center justify-center shadow-lg text-[var(--color-primary-foreground)] shrink-0">
+                 <span className="font-sans font-bold text-lg">U</span>
                </div>
+               <div>
+                  <h1 className="text-base font-sans font-bold text-[var(--color-text-main)] leading-none tracking-tight whitespace-nowrap">Urneo</h1>
+                  <p className="text-[8px] font-bold text-[var(--color-text-secondary)] uppercase tracking-[0.2em] mt-0.5 whitespace-nowrap">System 2035</p>
+               </div>
+           </div>
 
-               {/* Collapsible Profile Menu */}
-               {isProfileMenuOpen && (
-                  <div className="mt-2 space-y-1 px-1 animate-fade-in">
-                     <button onClick={() => { onChangeView('client-dashboard'); setIsMobileMenuOpen(false); }} className="w-full text-left px-3 py-1.5 text-xs rounded-lg hover:bg-[var(--color-background)] text-[var(--color-text-secondary)] flex items-center gap-2">
-                        <LayoutIcon size={12}/> Panel Klienta
-                     </button>
-                     {user.companyId && (
-                        <button onClick={() => { onChangeView('company-panel'); setIsMobileMenuOpen(false); }} className="w-full text-left px-3 py-1.5 text-xs rounded-lg hover:bg-[var(--color-background)] text-[var(--color-text-secondary)] flex items-center gap-2">
-                           <Building2 size={12}/> Firma
-                        </button>
-                     )}
-                  </div>
-               )}
-            </div>
+           {/* Navigation */}
+           <nav className="flex-1 space-y-1 px-3">
+              {displayItems.map(item => (
+                 <button 
+                    key={item.view} 
+                    onClick={() => { onChangeView(item.view); setIsMobileMenuOpen(false); }} 
+                    className={`flex items-center gap-3 w-full p-2.5 rounded-xl transition-all group relative overflow-hidden
+                       ${currentView === item.view 
+                          ? 'bg-[var(--color-surface)] text-[var(--color-primary)] font-bold shadow-sm' 
+                          : 'hover:bg-[var(--color-surface)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-main)]'}
+                    `}
+                 >
+                    <item.icon size={20} className={`shrink-0 transition-transform ${currentView === item.view ? '' : 'group-hover:scale-110'}`} strokeWidth={currentView === item.view ? 2.5 : 2} /> 
+                    <span className="text-sm">
+                       {item.label}
+                    </span>
+                    
+                    {/* Active Indicator Strip */}
+                    {currentView === item.view && (
+                       <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-[var(--color-primary)] rounded-r-full"></div>
+                    )}
+                 </button>
+              ))}
+           </nav>
 
-            {/* Actions Grid */}
-            <div className="grid grid-cols-4 gap-2">
-               <button 
-                  onClick={toggleThemeMode} 
-                  className="flex items-center justify-center h-10 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:text-[var(--color-primary)] hover:border-[var(--color-primary)] transition-all"
-                  title="Przełącz motyw"
-               >
-                  {isDarkMode ? <Sun size={18}/> : <Moon size={18}/>}
-               </button>
-               
-               <button 
-                  onClick={toggleLayout} 
-                  className="flex items-center justify-center h-10 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:text-[var(--color-primary)] hover:border-[var(--color-primary)] transition-all"
-                  title="Zmień układ na górny"
-               >
-                  <PanelTop size={18}/>
-               </button>
-
-               <button 
-                  onClick={() => { setIsNotificationsOpen(true); setIsMobileMenuOpen(false); }} 
-                  className="flex items-center justify-center h-10 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:text-[var(--color-primary)] hover:border-[var(--color-primary)] transition-all relative"
-                  title="Powiadomienia"
-               >
-                  <Bell size={18}/>
-                  {unreadCount > 0 && <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>}
-               </button>
-
-               <button 
-                  onClick={onLogout} 
-                  className="flex items-center justify-center h-10 rounded-xl bg-red-50 border border-red-100 text-red-500 hover:bg-red-500 hover:text-white transition-all"
-                  title="Wyloguj"
-               >
-                  <LogOut size={18}/>
-               </button>
-            </div>
-         </div>
-      </div>
-    </aside>
-  );
+           {/* Bottom User Area */}
+           <div className="mt-auto pt-4 border-t border-[var(--color-border)] px-3">
+              <div className="flex items-center gap-3 p-2 rounded-xl hover:bg-[var(--color-surface)] cursor-pointer transition-all group" onClick={toggleLayout}>
+                 <div className="w-8 h-8 rounded-full bg-[var(--color-primary)] flex items-center justify-center text-[var(--color-primary-foreground)] font-bold text-xs shrink-0">
+                    {user.first_name[0]}
+                 </div>
+                 <div className="flex-1 min-w-0">
+                    <div className="font-bold text-sm truncate leading-tight">{user.first_name}</div>
+                    <div className="text-[10px] text-[var(--color-text-secondary)] truncate">Profil</div>
+                 </div>
+              </div>
+              
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                 <button onClick={toggleThemeMode} className="h-8 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)] flex items-center justify-center text-[var(--color-text-secondary)] hover:text-[var(--color-primary)] transition-colors" title="Motyw">
+                    {isDarkMode ? <Sun size={14}/> : <Moon size={14}/>}
+                 </button>
+                 <button onClick={onLogout} className="h-8 rounded-lg bg-red-50 border border-red-100 flex items-center justify-center text-red-500 hover:bg-red-500 hover:text-white transition-colors" title="Wyloguj">
+                    <LogoutIcon size={14}/>
+                 </button>
+              </div>
+           </div>
+        </div>
+      </aside>
+    );
+  };
 
   const Topbar = () => (
     <>
@@ -386,35 +368,9 @@ export const Layout: React.FC<LayoutProps> = ({
       >
          <div className="max-w-[1600px] mx-auto px-6 h-full flex items-center gap-6">
             
-            {/* Category Selector (Pills) */}
-            <div className="flex gap-2 pr-6 border-r border-[var(--color-border)] h-10 items-center shrink-0">
-               {user.role === 'super_admin' && (
-                  <button 
-                     onClick={() => setActiveCategory('admin')}
-                     className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${activeCategory === 'admin' ? 'bg-[var(--color-primary)] text-[var(--color-primary-foreground)]' : 'bg-[var(--color-surface)] hover:bg-[var(--color-secondary)]'}`}
-                  >
-                     Admin
-                  </button>
-               )}
-               {user.companyId && (
-                  <button 
-                     onClick={() => setActiveCategory('company')}
-                     className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${activeCategory === 'company' ? 'bg-[var(--color-primary)] text-[var(--color-primary-foreground)]' : 'bg-[var(--color-surface)] hover:bg-[var(--color-secondary)]'}`}
-                  >
-                     Firma
-                  </button>
-               )}
-               <button 
-                  onClick={() => setActiveCategory('community')}
-                  className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${activeCategory === 'community' ? 'bg-[var(--color-primary)] text-[var(--color-primary-foreground)]' : 'bg-[var(--color-surface)] hover:bg-[var(--color-secondary)]'}`}
-               >
-                  Społeczność
-               </button>
-            </div>
-
             {/* Scrollable Items List */}
             <div className="flex-1 overflow-x-auto custom-scrollbar flex items-center gap-2 h-full">
-               {(activeCategory === 'company' ? companyItems : activeCategory === 'community' ? communityItems : systemItems).map(item => (
+               {displayItems.map(item => (
                   <button
                      key={item.view}
                      onClick={() => onChangeView(item.view)}
@@ -470,7 +426,7 @@ export const Layout: React.FC<LayoutProps> = ({
 
       <main className={`
         relative z-10 min-h-screen transition-all duration-300
-        ${layoutMode === 'sidebar' ? 'lg:pl-80 pt-6' : 'pt-44'}
+        ${layoutMode === 'sidebar' ? 'lg:pl-64 pt-6' : 'pt-44'}
         ${isImpersonating ? (layoutMode === 'sidebar' ? 'mt-14' : 'pt-56') : ''}
       `}>
          {/* Mobile Toggle for Sidebar Mode */}

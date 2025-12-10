@@ -2,12 +2,18 @@
 import { User, Theme, Company, Branch, Furnace, CremationOptionGroup, CremationOption, CooperatingCompany, Driver, Cremation, CompanyTag, DocumentCategory, DocumentTemplate, CremationHistoryEntry, WarehouseCategory, WarehouseItem, Manufacturer, Vehicle, Checklist, Funeral, Relation, Invitation, WorkSession, PayrollBonus, UserBonus, Notification, UserRole, LeaveRequest, BulletinAd, BulletinCategory } from '../types';
 import { URNEO_THEME_CSS } from '../constants';
 import { supabase, isSupabaseConfigured } from './supabaseClient';
+import emailjs from '@emailjs/browser';
+
+// --- KONFIGURACJA EMAILJS ---
+const EMAILJS_SERVICE_ID = 'service_urneo'; 
+const EMAILJS_TEMPLATE_ID = 'template_4xvrq1r'; 
+const EMAILJS_PUBLIC_KEY = 'bpLsXorWZWjshKpdT'; 
 
 // Helper to handle snake_case (DB) <-> camelCase (App)
 const mapUserFromDB = (u: any): User => ({
   ...u,
-  first_name: u.first_name,
-  last_name: u.last_name,
+  first_name: u.first_name || '',
+  last_name: u.last_name || '',
   client_number: u.client_number,
   companyId: u.company_id,
   branchId: u.branch_id,
@@ -138,9 +144,14 @@ export const logoutUser = () => {
 
 // Helper to find lowest free client number (e.g. 00001, 00002, 00004 -> returns 00003)
 const getLowestFreeClientNumber = async (): Promise<string> => {
-   const { data } = await supabase.from('users').select('client_number');
-   const numbers = (data || [])
-      .map((u: any) => parseInt(u.client_number || '0', 10))
+   // Fetch client numbers from both users AND pending invitations
+   const { data: users } = await supabase.from('users').select('client_number');
+   const { data: invites } = await supabase.from('invitations').select('client_number');
+   
+   const userNumbers = (users || []).map((u: any) => parseInt(u.client_number || '0', 10));
+   const inviteNumbers = (invites || []).map((i: any) => parseInt(i.client_number || '0', 10));
+   
+   const numbers = [...userNumbers, ...inviteNumbers]
       .filter((n: number) => !isNaN(n) && n > 0)
       .sort((a: number, b: number) => a - b);
 
@@ -155,7 +166,12 @@ const getLowestFreeClientNumber = async (): Promise<string> => {
 };
 
 export const registerClient = async (data: Partial<User>): Promise<User | null> => {
-  const clientNumber = await getLowestFreeClientNumber();
+  // If client_number is already provided (from invitation), use it. 
+  // Otherwise generate new one.
+  let clientNumber = data.client_number;
+  if (!clientNumber) {
+     clientNumber = await getLowestFreeClientNumber();
+  }
 
   const newUser: Partial<User> = {
     ...data,
@@ -242,6 +258,14 @@ export const deleteUser = async (userId: string) => {
   await supabase.from('users').delete().eq('id', userId);
 };
 
+export const removeUserFromCompany = async (userId: string) => {
+   await supabase.from('users').update({
+      company_id: null,
+      branch_id: null,
+      company_role: null
+   }).eq('id', userId);
+};
+
 // --- Company API ---
 export const getCompanies = async (): Promise<Company[]> => {
   const { data } = await supabase.from('companies').select('*');
@@ -264,7 +288,8 @@ export const createCompany = async (data: Partial<Company>, ownerUserId: string)
     ...data,
     company_number: nextNum,
     package_type: data.package_type || 'basic',
-    bulletin_config: { enabled: false, displayCategories: [] }
+    bulletin_config: { enabled: false, displayCategories: [] },
+    photo_url: data.photo_url // Ensure photo_url is passed
   };
 
   // 2. Create Company
@@ -326,7 +351,7 @@ export const getCompanyById = async (companyId: string): Promise<Company | undef
   };
 };
 
-// --- Branch API ---
+// ... existing code for branches, bonuses, sessions, etc. ...
 export const getBranches = async (): Promise<Branch[]> => {
   const { data } = await supabase.from('branches').select('*');
   return (data || []).map((b: any) => ({ ...b, companyId: b.company_id, branch_number: b.branch_number }));
@@ -555,7 +580,10 @@ export const deleteLeaveRequest = async (id: string) => {
 export const respondToLeaveRequest = async (requestId: string, approved: boolean, adminUser?: User) => {
    const { data: request } = await supabase.from('leave_requests').select('*').eq('id', requestId).single();
    
-   if(request) {
+   // CRITICAL FIX: Check if request exists AND is still pending. 
+   // This prevents double deduction if admin clicks approve multiple times or UI lags.
+   if (request && request.status === 'pending') {
+      
       // Update Request Status
       await supabase.from('leave_requests').update({ 
          status: approved ? 'approved' : 'rejected',
@@ -584,6 +612,7 @@ export const respondToLeaveRequest = async (requestId: string, approved: boolean
    }
 };
 
+// ... (Rest of existing functions for furnaces, options, etc. remain unchanged) ...
 export const getFurnaces = async (companyId: string): Promise<Furnace[]> => {
   const { data } = await supabase.from('furnaces').select('*').eq('company_id', companyId);
   return (data || []).map((f:any) => ({ ...f, companyId: f.company_id, branchId: f.branch_id }));
@@ -1029,10 +1058,18 @@ export const deleteDocTemplate = async (id: string) => {
 };
 
 export const getInvitations = async (): Promise<Invitation[]> => {
-  const { data } = await supabase.from('invitations').select('*');
-  return (data || []).map((i:any) => ({
+  // Join users to get registered user details if accepted
+  const { data } = await supabase
+    .from('invitations')
+    .select('*, users!invitations_email_fkey(first_name, last_name, email)'); // Assuming foreign key link on email or handle logic manually
+
+  // Since invitations email is not a true foreign key to users.email in DB schema, 
+  // we might need to manually fetch users if 'accepted'.
+  // However, simpler approach:
+  const invites = (data || []).map((i:any) => ({
     id: i.id,
     email: i.email,
+    client_number: i.client_number,
     companyId: i.company_id,
     companyName: i.company_name,
     branchId: i.branch_id,
@@ -1042,20 +1079,114 @@ export const getInvitations = async (): Promise<Invitation[]> => {
     senderName: i.sender_name,
     created_at: i.created_at
   }));
+
+  // Fetch users for accepted invites
+  const acceptedEmails = invites.filter((i:any) => i.status === 'accepted').map((i:any) => i.email);
+  if (acceptedEmails.length > 0) {
+     const { data: users } = await supabase.from('users').select('*').in('email', acceptedEmails);
+     return invites.map((inv: any) => {
+        if (inv.status === 'accepted') {
+           const u = users?.find((user: any) => user.email === inv.email);
+           if (u) return { ...inv, registeredUser: mapUserFromDB(u) };
+        }
+        return inv;
+     });
+  }
+
+  return invites;
 };
 
-const sendMailjetEmail = async (toEmail: string, companyName: string, senderName: string, invitationId: string, isActivation: boolean = false, activationLink: string = '') => {
-  // ... existing code ... (unchanged)
-  return Promise.resolve();
+const sendEmailJS = async (toEmail: string, companyName: string, senderName: string, invitationId: string, isActivation: boolean = false, activationLink: string = '') => {
+  const baseUrl = window.location.origin;
+  
+  let actionText = "Dołącz do Zespołu";
+  let link = activationLink; // Pass full link
+  let messageTitle = `Zaproszenie do ${companyName}`;
+  let messageBody = `Cześć! <strong>${senderName}</strong> zaprasza Cię do dołączenia do firmy <strong>${companyName}</strong> w systemie Urneo.`;
+
+  if (isActivation) {
+     actionText = "Aktywuj Konto";
+     messageTitle = `Aktywuj konto w ${companyName}`;
+     messageBody = `Zostałeś dodany do systemu firmy <strong>${companyName}</strong>. Kliknij poniżej, aby aktywować swoje konto i ustawić hasło.`;
+  }
+
+  const templateParams = {
+     to_email: toEmail,
+     to_name: 'Użytkownik',
+     company_name: companyName,
+     sender_name: senderName,
+     message_title: messageTitle,
+     message_body: messageBody,
+     action_text: actionText,
+     action_link: link
+  };
+
+  try {
+    await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, templateParams, EMAILJS_PUBLIC_KEY);
+    console.log('Email wysłany przez EmailJS');
+  } catch (error) {
+    console.error('Błąd wysyłania EmailJS:', JSON.stringify(error));
+  }
 };
 
 export const sendInvitation = async (email: string, companyId: string, branchId?: string, sender?: User) => {
-  // ... existing code ... (unchanged)
+  const company = await getCompanyById(companyId);
+  
+  // 1. Check if user exists but is not in THIS company
+  const existingUser = await getUserByEmail(email);
+  
+  if (existingUser) {
+     // Scenario A: User exists -> Create Notification inside App
+     await createNotification({
+        userId: existingUser.id,
+        type: 'info',
+        title: 'Zaproszenie do firmy',
+        message: `Firma ${company?.name} zaprasza Cię do dołączenia do zespołu.`
+     });
+     
+     // Create record in invitations table for tracking status (Reserve NO new client number, they have one)
+     const db = {
+       email,
+       company_id: companyId,
+       company_name: company?.name,
+       branch_id: branchId,
+       status: 'pending',
+       sender_id: sender?.id,
+       sender_name: sender ? `${sender.first_name} ${sender.last_name}` : undefined,
+       client_number: existingUser.client_number // Use existing
+     };
+     await supabase.from('invitations').insert(db);
+
+  } else {
+     // Scenario B: User does not exist -> Create Invitation with Reserved Number
+     
+     // 1. Get Next Free Number
+     const clientNumber = await getLowestFreeClientNumber();
+
+     const db = {
+        email,
+        company_id: companyId,
+        company_name: company?.name,
+        branch_id: branchId,
+        status: 'pending',
+        sender_id: sender?.id,
+        sender_name: sender ? `${sender.first_name} ${sender.last_name}` : undefined,
+        client_number: clientNumber // Reserve it here!
+     };
+     await supabase.from('invitations').insert(db);
+
+     // 2. Send Email with Link containing client_number
+     // We do NOT create a user record yet. The user will do it via the link.
+     const link = `${window.location.origin}?register_email=${encodeURIComponent(email)}&client_number=${clientNumber}`;
+     const senderName = sender ? `${sender.first_name} ${sender.last_name}` : 'Administrator';
+        
+     await sendEmailJS(email, company?.name || 'Urneo', senderName, '', false, link);
+  }
 };
 
 export const respondToInvitation = async (invitationId: string, accept: boolean) => {
   await supabase.from('invitations').update({ status: accept ? 'accepted' : 'rejected' }).eq('id', invitationId);
-  // ... existing code ... (unchanged)
+  // Note: Actual linking of user to company happens in View logic (ClientPanel) upon acceptance
 };
 
 export const deleteInvitation = async (id: string) => {

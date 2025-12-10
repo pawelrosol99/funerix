@@ -19,6 +19,7 @@ export interface Notification {
 export interface Invitation {
   id: string;
   email: string;
+  client_number: string; // Added: Reserved client number
   companyId: string;
   companyName: string;
   branchId?: string;
@@ -27,6 +28,8 @@ export interface Invitation {
   senderId?: string;
   senderName?: string;
   created_at: string;
+  // Join fields for display after acceptance
+  registeredUser?: User; 
 }
 
 export interface LeaveRequest {

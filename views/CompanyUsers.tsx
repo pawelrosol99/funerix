@@ -1,9 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { User, Invitation, WorkSession, Branch } from '../types';
-import { getCompanyUsers, deleteUser, getUserByEmail, sendInvitation, getInvitations, saveUser, getWorkSessions, approveSessionEdit, deleteInvitation, getBranches } from '../services/storageService';
+import { getCompanyUsers, deleteUser, getUserByEmail, sendInvitation, getInvitations, saveUser, getWorkSessions, approveSessionEdit, deleteInvitation, getBranches, removeUserFromCompany } from '../services/storageService';
 import { Card, Button, Input, Badge } from '../components/UI';
-import { Plus, Trash2, User as UserIcon, Send, Clock, CheckCircle, Edit2, Shield, Calendar, Check, X, AlertTriangle, Mail, Building2 } from 'lucide-react';
+import { Plus, Trash2, User as UserIcon, Send, Clock, CheckCircle, Edit2, Shield, Calendar, Check, X, AlertTriangle, Mail, Building2, Save } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface CompanyUsersProps {
@@ -96,11 +96,12 @@ export const CompanyUsers: React.FC<CompanyUsersProps> = ({ user, currentBranchI
      }
   };
 
-  const handleDelete = (id: string) => {
+  const handleRemoveEmployee = async (id: string) => {
     if (id === user.id) return alert('Nie możesz usunąć samego siebie.');
-    if (confirm('Usunąć pracownika?')) {
-      deleteUser(id);
+    if (confirm('Czy na pewno chcesz usunąć pracownika z firmy? (Konto zostanie zachowane, ale straci dostęp do panelu firmowego)')) {
+      await removeUserFromCompany(id);
       loadData();
+      toast.success('Pracownik usunięty z firmy.');
     }
   };
 
@@ -182,7 +183,7 @@ export const CompanyUsers: React.FC<CompanyUsersProps> = ({ user, currentBranchI
                       <div className="flex items-start justify-between">
                          <div className="flex items-center gap-3">
                             <div className="w-12 h-12 rounded-full bg-[var(--color-surface-highlight)] flex items-center justify-center font-bold text-xl overflow-hidden border border-[var(--color-border)]">
-                               {emp.photoUrl ? <img src={emp.photoUrl} className="w-full h-full object-cover" /> : `${emp.first_name[0]}${emp.last_name[0]}`}
+                               {emp.photoUrl ? <img src={emp.photoUrl} className="w-full h-full object-cover" /> : `${(emp.first_name || '?')[0]}${(emp.last_name || '?')[0]}`}
                             </div>
                             <div>
                                <div className="font-bold text-lg">{emp.first_name} {emp.last_name}</div>
@@ -225,7 +226,7 @@ export const CompanyUsers: React.FC<CompanyUsersProps> = ({ user, currentBranchI
                       </div>
 
                       {emp.id !== user.id && (
-                         <button onClick={() => handleDelete(emp.id)} className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity text-[var(--color-text-secondary)] hover:text-[var(--color-danger)]">
+                         <button onClick={() => handleRemoveEmployee(emp.id)} className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity text-[var(--color-text-secondary)] hover:text-[var(--color-danger)]">
                             <Trash2 size={16} />
                          </button>
                       )}
@@ -260,28 +261,46 @@ export const CompanyUsers: React.FC<CompanyUsersProps> = ({ user, currentBranchI
                    const bgClass = isActive ? 'bg-[var(--color-surface-highlight)]' : 'bg-[var(--color-surface)]';
 
                    return (
-                      <div key={inv.id} className={`p-4 rounded-xl border ${borderClass} ${bgClass} ${opacityClass} flex flex-col md:flex-row justify-between items-center gap-4 transition-all`}>
-                         <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-1">
-                               <span className="font-bold text-lg">{inv.email}</span>
-                               <Badge variant={inv.status === 'pending' ? 'warning' : inv.status === 'accepted' ? 'success' : 'danger'}>
-                                  {inv.status === 'pending' ? 'Oczekuje' : inv.status === 'accepted' ? 'Zaakceptowane' : 'Odrzucone'}
-                               </Badge>
+                      <div key={inv.id} className={`flex flex-col gap-4 p-4 rounded-xl border ${borderClass} ${bgClass} ${opacityClass} transition-all`}>
+                         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                            <div className="flex-1">
+                               <div className="flex items-center gap-3 mb-1">
+                                  <span className="font-bold text-lg">{inv.email}</span>
+                                  <Badge variant={inv.status === 'pending' ? 'warning' : inv.status === 'accepted' ? 'success' : 'danger'}>
+                                     {inv.status === 'pending' ? 'Oczekuje' : inv.status === 'accepted' ? 'Zaakceptowane' : 'Odrzucone'}
+                                  </Badge>
+                               </div>
+                               <div className="text-xs text-[var(--color-text-secondary)] flex flex-wrap gap-4 mt-2">
+                                  <span>Nr Klienta: <strong className="font-mono text-[var(--color-primary)]">{inv.client_number}</strong></span>
+                                  <span>Wysłano: {new Date(inv.created_at).toLocaleString()}</span>
+                                  {inv.senderName && <span>Przez: {inv.senderName}</span>}
+                               </div>
                             </div>
-                            <div className="text-xs text-[var(--color-text-secondary)] flex gap-4">
-                               <span>Wysłano: {new Date(inv.created_at).toLocaleString()}</span>
-                               {inv.senderName && <span>Przez: {inv.senderName}</span>}
+                            
+                            <div className="flex items-center gap-4">
+                               <div className="text-[10px] text-[var(--color-text-secondary)] font-mono opacity-50 hidden md:block">
+                                  ID: {inv.id.slice(0, 8)}...
+                               </div>
+                               <Button size="sm" variant="ghost" className="text-[var(--color-danger)] hover:bg-red-50" onClick={() => handleDeleteInvitation(inv.id)}>
+                                  <Trash2 size={16}/>
+                               </Button>
                             </div>
                          </div>
-                         
-                         <div className="flex items-center gap-4">
-                            <div className="text-[10px] text-[var(--color-text-secondary)] font-mono opacity-50 hidden md:block">
-                               ID: {inv.id.slice(0, 8)}...
+
+                         {/* Show Registered User Details if Accepted */}
+                         {inv.status === 'accepted' && inv.registeredUser && (
+                            <div className="mt-2 pt-3 border-t border-[var(--color-border)] bg-[var(--color-background)] bg-opacity-50 p-3 rounded-lg flex items-center gap-4">
+                               <div className="w-8 h-8 rounded-full bg-[var(--color-primary)] flex items-center justify-center text-[var(--color-primary-foreground)] font-bold text-xs">
+                                  {inv.registeredUser.first_name[0]}{inv.registeredUser.last_name[0]}
+                               </div>
+                               <div className="text-sm">
+                                  <div className="font-bold">{inv.registeredUser.first_name} {inv.registeredUser.last_name}</div>
+                                  <div className="text-xs text-[var(--color-text-secondary)]">
+                                     {inv.registeredUser.companyRole === 'owner' ? 'Właściciel' : 'Pracownik'} • Oddział: {getBranchName(inv.registeredUser.branchId)}
+                                  </div>
+                               </div>
                             </div>
-                            <Button size="sm" variant="ghost" className="text-[var(--color-danger)] hover:bg-red-50" onClick={() => handleDeleteInvitation(inv.id)}>
-                               <Trash2 size={16}/>
-                            </Button>
-                         </div>
+                         )}
                       </div>
                    )
                 })}
@@ -312,117 +331,120 @@ export const CompanyUsers: React.FC<CompanyUsersProps> = ({ user, currentBranchI
                       </div>
                    </div>
 
-                   <div className="space-y-4">
-                      <div>
-                         <label className="text-xs uppercase font-bold text-[var(--color-text-secondary)] mb-2 block">Przypisany Oddział</label>
-                         <select 
-                            className="w-full bg-[var(--color-input)] border border-[var(--color-border)] rounded-[var(--radius-input)] p-3 text-sm outline-none"
-                            value={editForm.branchId || ''}
-                            onChange={e => setEditForm({...editForm, branchId: e.target.value || undefined})}
-                         >
-                            <option value="">-- Brak / Nieprzypisany --</option>
-                            {branches.map(b => (
-                               <option key={b.id} value={b.id}>{b.name} ({b.city})</option>
-                            ))}
-                         </select>
-                      </div>
-
-                      <div>
-                         <label className="text-xs uppercase font-bold text-[var(--color-text-secondary)] mb-2 block">Rola w systemie</label>
-                         <div className="flex gap-2">
-                            <button 
-                               onClick={() => setEditForm({...editForm, companyRole: 'employee'})}
-                               className={`flex-1 py-2 rounded-lg border text-sm font-bold ${editForm.companyRole === 'employee' ? 'bg-[var(--color-primary)] text-white border-[var(--color-primary)]' : 'bg-[var(--color-background)] border-[var(--color-border)]'}`}
-                            >
-                               Pracownik
-                            </button>
-                            <button 
-                               onClick={() => setEditForm({...editForm, companyRole: 'owner'})}
-                               className={`flex-1 py-2 rounded-lg border text-sm font-bold flex items-center justify-center gap-2 ${editForm.companyRole === 'owner' ? 'bg-[var(--color-primary)] text-white border-[var(--color-primary)]' : 'bg-[var(--color-background)] border-[var(--color-border)]'}`}
-                            >
-                               <Shield size={14}/> Admin
-                            </button>
-                         </div>
+                   <div className="bg-[var(--color-surface-highlight)] p-4 rounded-xl border border-[var(--color-border)]">
+                      <div className="text-xs font-bold uppercase text-[var(--color-text-secondary)] mb-3">Uprawnienia</div>
+                      <div className="space-y-2">
+                         <label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-white rounded border border-transparent hover:border-[var(--color-border)]">
+                            <input 
+                               type="radio" 
+                               name="role" 
+                               checked={editForm.companyRole === 'employee' || !editForm.companyRole} 
+                               onChange={() => setEditForm({...editForm, companyRole: 'employee'})}
+                               className="accent-[var(--color-primary)]"
+                            />
+                            <div>
+                               <div className="font-bold text-sm">Pracownik</div>
+                               <div className="text-xs text-[var(--color-text-secondary)]">Standardowy dostęp do grafiku i zadań.</div>
+                            </div>
+                         </label>
+                         <label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-white rounded border border-transparent hover:border-[var(--color-border)]">
+                            <input 
+                               type="radio" 
+                               name="role" 
+                               checked={editForm.companyRole === 'owner'} 
+                               onChange={() => setEditForm({...editForm, companyRole: 'owner'})}
+                               className="accent-[var(--color-primary)]"
+                            />
+                            <div>
+                               <div className="font-bold text-sm">Właściciel / Admin</div>
+                               <div className="text-xs text-[var(--color-text-secondary)]">Pełny dostęp do ustawień firmy.</div>
+                            </div>
+                         </label>
                       </div>
                    </div>
 
-                   <div className="flex justify-end gap-2 pt-4">
-                      <Button variant="ghost" onClick={() => setEditingEmployee(null)}>Anuluj</Button>
-                      <Button onClick={saveEdit}>Zapisz Zmiany</Button>
+                   {/* Branch Assignment */}
+                   <div className="bg-[var(--color-surface-highlight)] p-4 rounded-xl border border-[var(--color-border)]">
+                      <label className="text-xs font-bold uppercase text-[var(--color-text-secondary)] mb-2 block">Przypisany Oddział</label>
+                      <select 
+                         className="w-full bg-white border border-[var(--color-border)] rounded-[var(--radius-input)] p-3 text-sm outline-none"
+                         value={editForm.branchId || ''}
+                         onChange={e => setEditForm({...editForm, branchId: e.target.value || undefined})}
+                      >
+                         <option value="">-- Domyślny / Wszystkie --</option>
+                         {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                      </select>
                    </div>
-                </div>
-             </Card>
-          </div>
-       )}
 
-       {/* --- WORK SESSIONS MODAL --- */}
-       {reviewingEmployeeId && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-             <Card className="w-full max-w-2xl h-[80vh] flex flex-col animate-fade-in border border-[var(--color-primary)] p-0 overflow-hidden">
-                <div className="p-4 border-b border-[var(--color-border)] flex justify-between items-center bg-[var(--color-surface)]">
-                   <h3 className="font-bold text-lg flex items-center gap-2"><Clock size={20}/> Historia Pracy</h3>
-                   <button onClick={() => setReviewingEmployeeId(null)} className="p-2 hover:bg-[var(--color-surface-highlight)] rounded-full"><X size={20}/></button>
                 </div>
                 
-                <div className="flex-1 overflow-y-auto p-4 custom-scrollbar bg-[var(--color-background)] space-y-3">
-                   {employeeSessions.map(session => {
-                      const duration = session.endTime ? Math.floor((new Date(session.endTime).getTime() - new Date(session.startTime).getTime()) / 60000) : 0;
-                      const hasPendingEdit = session.status === 'pending_approval';
-
-                      return (
-                         <div key={session.id} className={`p-4 rounded-xl border bg-[var(--color-surface)] ${hasPendingEdit ? 'border-yellow-400 ring-1 ring-yellow-400' : 'border-[var(--color-border)]'}`}>
-                            <div className="flex justify-between items-start mb-2">
-                               <div className="font-bold text-sm">
-                                  {new Date(session.startTime).toLocaleDateString()}
-                               </div>
-                               <Badge variant={hasPendingEdit ? 'warning' : 'secondary'}>
-                                  {hasPendingEdit ? 'Wymaga Akceptacji' : (session.endTime ? 'Zakończono' : 'Trwa')}
-                               </Badge>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4 text-sm mb-2">
-                               <div>
-                                  <span className="text-[var(--color-text-secondary)] block text-xs">Start</span>
-                                  <span className={hasPendingEdit ? 'line-through opacity-50' : ''}>
-                                     {new Date(session.startTime).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
-                                  </span>
-                                  {hasPendingEdit && session.editedStartTime && (
-                                     <span className="block font-bold text-yellow-600">
-                                        &rarr; {new Date(session.editedStartTime).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
-                                     </span>
-                                  )}
-                               </div>
-                               <div>
-                                  <span className="text-[var(--color-text-secondary)] block text-xs">Stop</span>
-                                  <span className={hasPendingEdit ? 'line-through opacity-50' : ''}>
-                                     {session.endTime ? new Date(session.endTime).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '-'}
-                                  </span>
-                                  {hasPendingEdit && session.editedEndTime && (
-                                     <span className="block font-bold text-yellow-600">
-                                        &rarr; {new Date(session.editedEndTime).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
-                                     </span>
-                                  )}
-                               </div>
-                            </div>
-
-                            <div className="text-xs text-[var(--color-text-secondary)]">
-                               Czas: <strong>{duration} min</strong> {hasPendingEdit && '(przed zmianą)'}
-                            </div>
-
-                            {hasPendingEdit && (
-                               <div className="flex justify-end gap-2 mt-4 pt-2 border-t border-[var(--color-border)]">
-                                  <Button size="sm" variant="danger" onClick={() => handleApproval(session.id, false)}>Odrzuć</Button>
-                                  <Button size="sm" className="bg-[var(--color-success)]" onClick={() => handleApproval(session.id, true)}>Zatwierdź Zmianę</Button>
-                               </div>
-                            )}
-                         </div>
-                      );
-                   })}
-                   {employeeSessions.length === 0 && <div className="text-center py-8 text-[var(--color-text-secondary)]">Brak historii pracy.</div>}
+                <div className="flex justify-end gap-2 pt-4 border-t border-[var(--color-border)] mt-4">
+                   <Button variant="ghost" onClick={() => setEditingEmployee(null)}>Anuluj</Button>
+                   <Button onClick={saveEdit} className="bg-[var(--color-success)]"><Save size={16} className="mr-2"/> Zapisz Zmiany</Button>
                 </div>
              </Card>
           </div>
        )}
+
+       {/* --- SESSION REVIEW MODAL --- */}
+       {reviewingEmployeeId && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+             <Card className="w-full max-w-2xl max-h-[80vh] flex flex-col p-0 overflow-hidden animate-fade-in border border-[var(--color-primary)]">
+                <div className="p-4 border-b border-[var(--color-border)] flex justify-between items-center bg-[var(--color-surface)]">
+                   <h3 className="font-bold text-lg flex items-center gap-2"><Clock size={20}/> Historia Czasu Pracy</h3>
+                   <button onClick={() => setReviewingEmployeeId(null)} className="p-2 hover:bg-[var(--color-surface-highlight)] rounded-full"><X/></button>
+                </div>
+                
+                <div className="flex-1 overflow-y-auto p-4 custom-scrollbar bg-[var(--color-background)]">
+                   {employeeSessions.length > 0 ? (
+                      <div className="space-y-3">
+                         {employeeSessions.map(session => (
+                            <div key={session.id} className="bg-[var(--color-surface)] p-3 rounded-xl border border-[var(--color-border)] flex justify-between items-center">
+                               <div>
+                                  <div className="font-bold text-sm">
+                                     {new Date(session.startTime).toLocaleDateString()}
+                                  </div>
+                                  <div className="text-xs text-[var(--color-text-secondary)] font-mono">
+                                     {new Date(session.startTime).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} - 
+                                     {session.endTime ? new Date(session.endTime).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : 'Trwa...'}
+                                  </div>
+                                  {session.status === 'pending_approval' && (
+                                     <div className="text-[10px] font-bold text-[var(--color-primary)] mt-1 flex items-center gap-1">
+                                        <AlertTriangle size={10}/> Wniosek o korektę
+                                     </div>
+                                  )}
+                               </div>
+                               
+                               <div className="flex items-center gap-4">
+                                  {session.endTime ? (
+                                     <div className="text-right">
+                                        <div className="font-bold text-sm">
+                                           {Math.floor((new Date(session.endTime).getTime() - new Date(session.startTime).getTime()) / 60000)} min
+                                        </div>
+                                        {session.status === 'completed' && <Badge variant="secondary" className="scale-75 origin-right">Zatwierdzone</Badge>}
+                                     </div>
+                                  ) : (
+                                     <Badge variant="warning" className="animate-pulse">Aktywna</Badge>
+                                  )}
+
+                                  {session.status === 'pending_approval' && (
+                                     <div className="flex gap-1">
+                                        <button onClick={() => handleApproval(session.id, true)} className="p-1 bg-green-100 text-green-600 rounded hover:bg-green-200"><Check size={16}/></button>
+                                        <button onClick={() => handleApproval(session.id, false)} className="p-1 bg-red-100 text-red-600 rounded hover:bg-red-200"><X size={16}/></button>
+                                     </div>
+                                  )}
+                               </div>
+                            </div>
+                         ))}
+                      </div>
+                   ) : (
+                      <div className="text-center p-8 text-[var(--color-text-secondary)]">Brak historii pracy.</div>
+                   )}
+                </div>
+             </Card>
+          </div>
+       )}
+
     </div>
   );
 };

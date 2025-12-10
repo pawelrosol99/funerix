@@ -28,13 +28,15 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, onNavigate }) => {
     last_name: '',
     phone: '',
     address: '',
-    city: ''
+    city: '',
+    client_number: '' // New field
   });
 
   // Check URL params for email invitation link OR activation link
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const registerEmail = params.get('register_email');
+    const clientNumberParam = params.get('client_number');
     const activationId = params.get('activation_id');
     const emailParam = params.get('email');
     
@@ -45,10 +47,18 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, onNavigate }) => {
        setFormData(prev => ({ ...prev, email: emailParam || '' }));
        toast.info('Wypełnij dane, aby aktywować swoje konto pracownicze.');
     } else if (registerEmail) {
-       // --- OLD REGISTRATION FLOW (Fallback) ---
+       // --- REGISTRATION FLOW ---
        setIsLogin(false); 
-       setFormData(prev => ({ ...prev, email: registerEmail }));
-       toast.info('Wypełnij pozostałe dane, aby utworzyć konto.');
+       setFormData(prev => ({ 
+          ...prev, 
+          email: registerEmail,
+          client_number: clientNumberParam || ''
+       }));
+       if (clientNumberParam) {
+          toast.success(`Zaproszenie przyjęte! Twój numer klienta to: ${clientNumberParam}`);
+       } else {
+          toast.info('Wypełnij pozostałe dane, aby utworzyć konto.');
+       }
     }
   }, []);
 
@@ -217,9 +227,17 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, onNavigate }) => {
                   value={formData.email} 
                   onChange={handleChange} 
                   required 
-                  disabled={!!activationUserId} 
-                  className={activationUserId ? 'opacity-70 cursor-not-allowed' : ''}
+                  disabled={!!activationUserId || !!formData.client_number} // Readonly if passed via URL
+                  className={activationUserId || formData.client_number ? 'opacity-70 cursor-not-allowed' : ''}
                />
+
+               {/* Reserved Client Number Display */}
+               {formData.client_number && (
+                  <div className="bg-[var(--color-surface-highlight)] p-2 rounded border border-[var(--color-primary)] text-center">
+                     <div className="text-[10px] uppercase font-bold text-[var(--color-text-secondary)]">Twój Numer Klienta</div>
+                     <div className="font-mono text-xl font-bold text-[var(--color-primary)] tracking-widest">{formData.client_number}</div>
+                  </div>
+               )}
                
                <Input label="Hasło (Wymagane)" type="password" name="password" value={formData.password} onChange={handleChange} required placeholder="Utwórz hasło" />
                <Input label="Telefon" name="phone" value={formData.phone} onChange={handleChange} />

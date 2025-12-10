@@ -55,19 +55,47 @@ export const BranchAdminPanel: React.FC<BranchAdminPanelProps> = ({ user, curren
   };
 
   const handleLeaveResponse = async (id: string, approved: boolean) => {
-     // 1. Update DB
-     await respondToLeaveRequest(id, approved, user);
-     
-     // 2. Clear Edit State
+     // OPTIMISTIC UPDATE: Update UI immediately before server response
+     // This prevents the user from clicking again and removes the "lag"
+     setLeaveRequests(prev => prev.map(req => {
+        if (req.id === id) {
+           return {
+              ...req,
+              status: approved ? 'approved' : 'rejected',
+              resolvedBy: user.id,
+              resolvedByName: `${user.first_name} ${user.last_name}`,
+              resolvedAt: new Date().toISOString()
+           };
+        }
+        return req;
+     }));
+
      setEditingRequestId(null);
      
-     // 3. Refresh Data immediately to move card to the bottom
-     await loadData();
+     // Proceed with backend update
+     await respondToLeaveRequest(id, approved, user);
+     
+     // Optionally reload to sync everything, but UI is already correct
+     // await loadData(); 
      
      toast.success(approved ? 'Wniosek zaakceptowany' : 'Wniosek odrzucony');
   };
 
   const handleSessionResponse = async (id: string, approved: boolean) => {
+     // Optimistic update for sessions as well
+     setSessionRequests(prev => prev.map(s => {
+        if(s.id === id) {
+           return {
+              ...s,
+              status: 'completed', // Or whatever status means resolved
+              resolvedBy: user.id,
+              resolvedByName: `${user.first_name} ${user.last_name}`,
+              resolvedAt: new Date().toISOString()
+           }
+        }
+        return s;
+     }));
+
      await approveSessionEdit(id, approved, user);
      await loadData();
      toast.success(approved ? 'Korekta zatwierdzona' : 'Korekta odrzucona');

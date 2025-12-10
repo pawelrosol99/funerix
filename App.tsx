@@ -229,8 +229,8 @@ const App: React.FC = () => {
   }
 
   // Helper for Protected Admin Routes
-  const ProtectedAdminRoute = ({ children }: { children: React.ReactNode }) => {
-     if (currentUser.role !== 'super_admin') {
+  const ProtectedAdminRoute = ({ children }: { children?: React.ReactNode }) => {
+     if (currentUser?.role !== 'super_admin') {
         return (
            <div className="flex flex-col items-center justify-center h-[60vh] text-center">
               <div className="p-4 bg-red-100 text-red-500 rounded-full mb-4"><ShieldAlert size={48}/></div>

@@ -35,7 +35,7 @@ CREATE TABLE companies (
   phone TEXT,
   photo_url TEXT,
   package_type TEXT DEFAULT 'basic',
-  bulletin_config JSONB DEFAULT '{"enabled": false, "displayCategories": []}', -- Konfiguracja giełdy
+  bulletin_config JSONB DEFAULT '{"enabled": false, "displayCategories": []}', 
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -55,13 +55,13 @@ CREATE TABLE branches (
 -- 3. Users
 CREATE TABLE users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  client_number TEXT, -- Indywidualny numer klienta (najniższy wolny)
+  client_number TEXT, -- Indywidualny numer klienta
   role TEXT NOT NULL, -- 'super_admin', 'client'
   company_role TEXT, -- 'owner', 'employee'
   login TEXT,
-  password TEXT, -- Może być NULL dla zaproszonych przed aktywacją
-  first_name TEXT, -- Może być NULL przed aktywacją
-  last_name TEXT, -- Może być NULL przed aktywacją
+  password TEXT, 
+  first_name TEXT, 
+  last_name TEXT, 
   email TEXT UNIQUE NOT NULL,
   phone TEXT,
   address TEXT,
@@ -81,6 +81,7 @@ CREATE TABLE users (
 CREATE TABLE invitations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   email TEXT NOT NULL,
+  client_number TEXT, -- ZAREZERWOWANY NUMER KLIENTA
   company_id UUID REFERENCES companies(id) ON DELETE CASCADE,
   company_name TEXT,
   branch_id UUID REFERENCES branches(id) ON DELETE SET NULL,
@@ -95,7 +96,7 @@ CREATE TABLE invitations (
 CREATE TABLE notifications (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-  type TEXT, -- 'info', 'success', 'warning', 'error'
+  type TEXT, 
   title TEXT,
   message TEXT,
   is_read BOOLEAN DEFAULT FALSE,
@@ -114,24 +115,25 @@ CREATE TABLE work_sessions (
   original_end_time TIMESTAMPTZ,
   edited_start_time TIMESTAMPTZ,
   edited_end_time TIMESTAMPTZ,
-  status TEXT DEFAULT 'active', -- 'active', 'completed', 'pending_approval'
+  status TEXT DEFAULT 'active', 
   resolved_by UUID REFERENCES users(id) ON DELETE SET NULL,
   resolved_by_name TEXT,
   resolved_at TIMESTAMPTZ
 );
 
 -- 7. Leave Requests (Wnioski Urlopowe)
+-- UPEWNIJ SIĘ, ŻE TE KOLUMNY ISTNIEJĄ DLA POPRAWNEGO DZIAŁANIA STATUSÓW
 CREATE TABLE leave_requests (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  request_number TEXT NOT NULL, -- Indywidualny numer np. URL/2023/1
+  request_number TEXT NOT NULL, 
   user_id UUID REFERENCES users(id) ON DELETE CASCADE,
   company_id UUID REFERENCES companies(id) ON DELETE CASCADE,
   branch_id UUID REFERENCES branches(id) ON DELETE SET NULL,
   start_date DATE NOT NULL,
   end_date DATE NOT NULL,
   days_count INT NOT NULL,
-  type TEXT DEFAULT 'vacation', -- 'vacation', 'sick', etc.
-  status TEXT DEFAULT 'pending', -- 'pending', 'approved', 'rejected'
+  type TEXT DEFAULT 'vacation', 
+  status TEXT DEFAULT 'pending', -- pending, approved, rejected
   created_at TIMESTAMPTZ DEFAULT NOW(),
   resolved_by UUID REFERENCES users(id) ON DELETE SET NULL,
   resolved_by_name TEXT,
@@ -196,7 +198,7 @@ CREATE TABLE relations (
 CREATE TABLE coop_companies (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   company_id UUID REFERENCES companies(id) ON DELETE CASCADE,
-  tag_id UUID, -- Link to tags table later
+  tag_id UUID, 
   nip TEXT,
   name TEXT NOT NULL,
   street TEXT,
@@ -232,8 +234,8 @@ CREATE TABLE vehicles (
   fuel_type TEXT,
   color TEXT,
   seats INT,
-  inspection_date TEXT, -- Date string
-  technical_date TEXT, -- Date string
+  inspection_date TEXT, 
+  technical_date TEXT, 
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -273,9 +275,9 @@ CREATE TABLE cremations (
   cooperating_company_id UUID REFERENCES coop_companies(id) ON DELETE SET NULL,
   furnace_id UUID REFERENCES furnaces(id) ON DELETE SET NULL,
   selected_options JSONB DEFAULT '[]',
-  deceased JSONB, -- { first_name, last_name, ... }
-  applicant JSONB, -- { first_name, last_name, ... }
-  items JSONB DEFAULT '[]', -- List of products used
+  deceased JSONB, 
+  applicant JSONB, 
+  items JSONB DEFAULT '[]', 
   is_paid BOOLEAN DEFAULT FALSE,
   is_deleted BOOLEAN DEFAULT FALSE,
   history JSONB DEFAULT '[]',
@@ -298,34 +300,23 @@ CREATE TABLE funerals (
   company_id UUID REFERENCES companies(id) ON DELETE CASCADE,
   branch_id UUID REFERENCES branches(id) ON DELETE SET NULL,
   funeral_number TEXT NOT NULL,
-  
-  -- Deceased Data
   deceased_first_name TEXT,
   deceased_last_name TEXT,
   death_date TEXT,
   death_place TEXT,
   death_certificate_number TEXT,
-  
-  -- Transport
   pickup_address TEXT,
   pickup_place_id UUID REFERENCES coop_companies(id) ON DELETE SET NULL,
   transport_date TEXT,
   transport_time TEXT,
-  
-  -- Applicant
   applicant_first_name TEXT,
   applicant_last_name TEXT,
   applicant_phone TEXT,
-  
-  -- Assignments
   assigned_staff_ids JSONB DEFAULT '[]',
   assigned_vehicle_id UUID REFERENCES vehicles(id) ON DELETE SET NULL,
-  
-  -- Complex Objects
   ceremony JSONB, 
   sale_items JSONB DEFAULT '[]',
   assigned_checklists JSONB DEFAULT '[]',
-  
   notes TEXT,
   events JSONB DEFAULT '[]',
   created_at TIMESTAMPTZ DEFAULT NOW()
@@ -367,7 +358,7 @@ CREATE TABLE user_bonuses (
   timestamp TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 24. Bulletin Board (Tablica Ogłoszeń)
+-- 24. Bulletin Board
 CREATE TABLE bulletin_categories (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
@@ -376,7 +367,7 @@ CREATE TABLE bulletin_categories (
 
 CREATE TABLE bulletin_ads (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  ad_number TEXT NOT NULL, -- OG/2023/001
+  ad_number TEXT NOT NULL,
   user_id UUID REFERENCES users(id) ON DELETE CASCADE,
   category_id UUID REFERENCES bulletin_categories(id) ON DELETE SET NULL,
   sub_category_id UUID REFERENCES bulletin_categories(id) ON DELETE SET NULL,
@@ -386,15 +377,13 @@ CREATE TABLE bulletin_ads (
   phone TEXT,
   email TEXT,
   location TEXT,
-  status TEXT DEFAULT 'active', -- 'active', 'closed'
+  status TEXT DEFAULT 'active',
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- ==========================================
--- ODBLOKOWANIE DOSTĘPU (WYŁĄCZENIE RLS)
+-- WYŁĄCZENIE RLS
 -- ==========================================
--- W trybie prototypu wyłączamy Row Level Security, aby aplikacja mogła
--- swobodnie czytać i zapisywać dane bez konfiguracji skomplikowanych polityk.
 ALTER TABLE companies DISABLE ROW LEVEL SECURITY;
 ALTER TABLE branches DISABLE ROW LEVEL SECURITY;
 ALTER TABLE users DISABLE ROW LEVEL SECURITY;
@@ -424,14 +413,13 @@ ALTER TABLE user_bonuses DISABLE ROW LEVEL SECURITY;
 ALTER TABLE bulletin_categories DISABLE ROW LEVEL SECURITY;
 ALTER TABLE bulletin_ads DISABLE ROW LEVEL SECURITY;
 
--- Wymuszenie uprawnień dla wszystkich ról (Fix dla błędu 42501)
 GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
 GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;
 GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated, service_role;
 GRANT ALL ON ALL ROUTINES IN SCHEMA public TO anon, authenticated, service_role;
 
 -- ==========================================
--- 25. SEED DATA (AUTOMATYCZNY ADMIN)
+-- SEED DATA
 -- ==========================================
 INSERT INTO users (
   role, 
@@ -461,24 +449,18 @@ INSERT INTO users (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
       <Card className="w-full max-w-4xl h-[90vh] flex flex-col p-0 border-2 border-[var(--color-primary)] animate-fade-in relative">
         <div className="p-4 border-b border-[var(--color-border)] flex justify-between items-center bg-[var(--color-surface)]">
-          <h3 className="text-xl font-bold">Instrukcja Konfiguracji Bazy Danych (Supabase)</h3>
+          <h3 className="text-xl font-bold">Aktualizacja Bazy Danych (Supabase)</h3>
           <button onClick={onClose} className="p-2 hover:bg-[var(--color-surface-highlight)] rounded-full"><X size={20}/></button>
         </div>
         
         <div className="flex-1 overflow-y-auto p-6 bg-[#1e1e1e] text-gray-300 font-mono text-sm custom-scrollbar relative">
           <div className="mb-4 bg-[var(--color-surface-highlight)] text-[var(--color-text-main)] p-4 rounded-lg border border-[var(--color-primary)] font-sans">
-            <h4 className="font-bold text-[var(--color-primary)] mb-2">Instrukcja:</h4>
+            <h4 className="font-bold text-[var(--color-primary)] mb-2">Wymagana Aktualizacja!</h4>
+            <p className="mb-2">Aby funkcje statusów wniosków i numeracji klientów działały poprawnie, musisz zaktualizować schemat bazy.</p>
             <ol className="list-decimal pl-5 space-y-1">
-              <li>Zaloguj się do panelu Supabase.</li>
-              <li>Przejdź do zakładki <strong>SQL Editor</strong>.</li>
-              <li>Wklej poniższy kod. Kod ten:
-                  <ul className="list-disc pl-5 mt-1 text-xs opacity-80">
-                      <li><strong>Kasuje aktualny schemat</strong> i tworzy tabele.</li>
-                      <li><strong>Wyłącza RLS</strong> (Row Level Security) oraz <strong>nadaje uprawnienia GRANT</strong> dla wszystkich ról.</li>
-                      <li><strong>Dodaje użytkownika Super Admin</strong> (Login: <code>jogi</code>, Hasło: <code>jogi123</code>).</li>
-                  </ul>
-              </li>
-              <li>Kliknij <strong>Run</strong>.</li>
+              <li>Skopiuj poniższy kod SQL.</li>
+              <li>Wklej go w zakładce <strong>SQL Editor</strong> w Supabase.</li>
+              <li>Uruchom (Run). <strong>Uwaga: To usunie stare dane!</strong></li>
             </ol>
           </div>
           <pre className="whitespace-pre-wrap">{sqlSchema}</pre>
