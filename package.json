@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "react": "19.0.0-rc-69d4b800-20241021",
-    "react-dom": "^19.2.1",
+    "react-dom": "19.0.0-rc-69d4b800-20241021",
     "lucide-react": "0.344.0",
     "sonner": "1.4.3",
     "@supabase/supabase-js": "2.39.7"
