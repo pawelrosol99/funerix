@@ -1,0 +1,64 @@
+
+<!DOCTYPE html>
+<html lang="pl">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Urneo 2035</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Syne:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700&family=Montserrat:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+       /* Custom Scrollbar for Webkit */
+       ::-webkit-scrollbar {
+          width: 8px;
+          height: 8px;
+       }
+       ::-webkit-scrollbar-track {
+          background: transparent;
+       }
+       ::-webkit-scrollbar-thumb {
+          background: rgba(0, 0, 0, 0.1);
+          border-radius: 999px;
+       }
+       ::-webkit-scrollbar-thumb:hover {
+          background: rgba(0, 0, 0, 0.2);
+       }
+       
+       /* Animations */
+       @keyframes pulse-slow {
+         0%, 100% { opacity: 0.1; transform: scale(1); }
+         50% { opacity: 0.2; transform: scale(1.1); }
+       }
+       .animate-pulse-slow {
+         animation: pulse-slow 8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+       }
+       @keyframes fade-in {
+         from { opacity: 0; transform: translateY(10px); }
+         to { opacity: 1; transform: translateY(0); }
+       }
+       .animate-fade-in {
+         animation: fade-in 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+       }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@19.0.0-rc-69d4b800-20241021?dev",
+    "react/": "https://esm.sh/react@19.0.0-rc-69d4b800-20241021/?dev",
+    "react/jsx-runtime": "https://esm.sh/react@19.0.0-rc-69d4b800-20241021/jsx-runtime?dev",
+    "react/jsx-dev-runtime": "https://esm.sh/react@19.0.0-rc-69d4b800-20241021/jsx-dev-runtime?dev",
+    "react-dom": "https://esm.sh/react-dom@19.0.0-rc-69d4b800-20241021?dev&deps=react@19.0.0-rc-69d4b800-20241021",
+    "react-dom/client": "https://esm.sh/react-dom@19.0.0-rc-69d4b800-20241021/client?dev&deps=react@19.0.0-rc-69d4b800-20241021",
+    "lucide-react": "https://esm.sh/lucide-react@0.344.0?dev&deps=react@19.0.0-rc-69d4b800-20241021,react-dom@19.0.0-rc-69d4b800-20241021",
+    "sonner": "https://esm.sh/sonner@1.4.3?dev&deps=react@19.0.0-rc-69d4b800-20241021,react-dom@19.0.0-rc-69d4b800-20241021",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.39.7",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/"
+  }
+}
+</script>
+</head>
+  <body class="antialiased overflow-x-hidden bg-[var(--color-background)]">
+    <div id="root"></div>
+  </body>
+</html>
