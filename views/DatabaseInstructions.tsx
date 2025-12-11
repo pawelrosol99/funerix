@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Card, Button } from '../components/UI';
-import { X, Copy } from 'lucide-react';
+import { X, Copy, Terminal } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface DatabaseInstructionsProps {
@@ -11,22 +11,21 @@ interface DatabaseInstructionsProps {
 export const DatabaseInstructions: React.FC<DatabaseInstructionsProps> = ({ onClose }) => {
   const sqlSchema = `
 -- ==========================================
--- 0. RESET SCHEMATU (CZYZCZENIE BAZY)
+-- 0. RESET SCHEMATU (CZYSZCZENIE BAZY)
 -- ==========================================
--- UWAGA: Poniższe polecenia usuną wszystkie dane z bazy!
+-- UWAGA: To usunie WSZYSTKIE dane! Używaj tylko na początku developmentu.
 DROP SCHEMA IF EXISTS public CASCADE;
 CREATE SCHEMA public;
 GRANT ALL ON SCHEMA public TO postgres;
 GRANT ALL ON SCHEMA public TO public;
 
 -- ==========================================
--- TWORZENIE TABEL
+-- 1. STRUKTURA FIRMY I UŻYTKOWNICY
 -- ==========================================
 
--- 1. Companies
 CREATE TABLE companies (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  company_number TEXT NOT NULL, -- Unikalny numer U00001
+  company_number TEXT NOT NULL,
   nip TEXT NOT NULL,
   name TEXT NOT NULL,
   street TEXT,
@@ -39,11 +38,10 @@ CREATE TABLE companies (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 2. Branches
 CREATE TABLE branches (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   company_id UUID REFERENCES companies(id) ON DELETE CASCADE,
-  branch_number TEXT NOT NULL, -- Format U00001/1
+  branch_number TEXT NOT NULL,
   name TEXT NOT NULL,
   street TEXT,
   city TEXT,
@@ -52,10 +50,9 @@ CREATE TABLE branches (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 3. Users
 CREATE TABLE users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  client_number TEXT, -- Indywidualny numer klienta
+  client_number TEXT,
   role TEXT NOT NULL, -- 'super_admin', 'client'
   company_role TEXT, -- 'owner', 'employee'
   login TEXT,
@@ -70,29 +67,27 @@ CREATE TABLE users (
   use_icon BOOLEAN DEFAULT FALSE,
   vacation_days_total INT DEFAULT 0,
   vacation_days_used INT DEFAULT 0,
-  hourly_rate NUMERIC,
+  hourly_rate NUMERIC DEFAULT 0,
   preferences JSONB DEFAULT '{"layoutMode": "sidebar"}',
   company_id UUID REFERENCES companies(id) ON DELETE SET NULL,
   branch_id UUID REFERENCES branches(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 4. Invitations
 CREATE TABLE invitations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   email TEXT NOT NULL,
-  client_number TEXT, -- ZAREZERWOWANY NUMER KLIENTA
+  client_number TEXT,
   company_id UUID REFERENCES companies(id) ON DELETE CASCADE,
   company_name TEXT,
   branch_id UUID REFERENCES branches(id) ON DELETE SET NULL,
   branch_name TEXT,
-  status TEXT DEFAULT 'pending', -- 'pending', 'accepted', 'rejected'
+  status TEXT DEFAULT 'pending',
   sender_id UUID REFERENCES users(id) ON DELETE SET NULL,
   sender_name TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 5. Notifications
 CREATE TABLE notifications (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES users(id) ON DELETE CASCADE,
@@ -103,7 +98,10 @@ CREATE TABLE notifications (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 6. Work Sessions
+-- ==========================================
+-- 2. KADRY I PŁACE
+-- ==========================================
+
 CREATE TABLE work_sessions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES users(id) ON DELETE CASCADE,
@@ -121,8 +119,6 @@ CREATE TABLE work_sessions (
   resolved_at TIMESTAMPTZ
 );
 
--- 7. Leave Requests (Wnioski Urlopowe)
--- UPEWNIJ SIĘ, ŻE TE KOLUMNY ISTNIEJĄ DLA POPRAWNEGO DZIAŁANIA STATUSÓW
 CREATE TABLE leave_requests (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   request_number TEXT NOT NULL, 
@@ -133,21 +129,35 @@ CREATE TABLE leave_requests (
   end_date DATE NOT NULL,
   days_count INT NOT NULL,
   type TEXT DEFAULT 'vacation', 
-  status TEXT DEFAULT 'pending', -- pending, approved, rejected
+  status TEXT DEFAULT 'pending',
   created_at TIMESTAMPTZ DEFAULT NOW(),
   resolved_by UUID REFERENCES users(id) ON DELETE SET NULL,
   resolved_by_name TEXT,
   resolved_at TIMESTAMPTZ
 );
 
--- 8. Themes
-CREATE TABLE themes (
-  id TEXT PRIMARY KEY,
+CREATE TABLE payroll_bonuses (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id UUID REFERENCES companies(id) ON DELETE CASCADE,
+  branch_id UUID REFERENCES branches(id) ON DELETE SET NULL,
   name TEXT NOT NULL,
-  css_vars JSONB NOT NULL
+  amount NUMERIC DEFAULT 0
 );
 
--- 9. Manufacturers
+CREATE TABLE user_bonuses (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  company_id UUID REFERENCES companies(id) ON DELETE CASCADE,
+  bonus_id UUID REFERENCES payroll_bonuses(id) ON DELETE SET NULL,
+  name TEXT,
+  amount NUMERIC,
+  timestamp TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ==========================================
+-- 3. MAGAZYN I PRODUKTY
+-- ==========================================
+
 CREATE TABLE manufacturers (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   nip TEXT,
@@ -158,7 +168,6 @@ CREATE TABLE manufacturers (
   email TEXT
 );
 
--- 10. Warehouse Categories
 CREATE TABLE warehouse_categories (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   company_id UUID REFERENCES companies(id) ON DELETE CASCADE,
@@ -167,7 +176,6 @@ CREATE TABLE warehouse_categories (
   parent_id UUID REFERENCES warehouse_categories(id) ON DELETE CASCADE
 );
 
--- 11. Warehouse Items
 CREATE TABLE warehouse_items (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   company_id UUID REFERENCES companies(id) ON DELETE CASCADE,
@@ -186,7 +194,6 @@ CREATE TABLE warehouse_items (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 12. Relations (Product Bundles)
 CREATE TABLE relations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   company_id UUID REFERENCES companies(id) ON DELETE CASCADE,
@@ -194,7 +201,10 @@ CREATE TABLE relations (
   category_ids JSONB DEFAULT '[]'
 );
 
--- 13. Cooperating Companies
+-- ==========================================
+-- 4. LOGISTYKA I KONTRAHENCI
+-- ==========================================
+
 CREATE TABLE coop_companies (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   company_id UUID REFERENCES companies(id) ON DELETE CASCADE,
@@ -207,7 +217,6 @@ CREATE TABLE coop_companies (
   email TEXT
 );
 
--- 14. Company Tags
 CREATE TABLE company_tags (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   company_id UUID REFERENCES companies(id) ON DELETE CASCADE,
@@ -215,7 +224,6 @@ CREATE TABLE company_tags (
   color TEXT
 );
 
--- 15. Drivers
 CREATE TABLE drivers (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   cooperating_company_id UUID REFERENCES coop_companies(id) ON DELETE CASCADE,
@@ -223,7 +231,6 @@ CREATE TABLE drivers (
   phone TEXT
 );
 
--- 16. Vehicles
 CREATE TABLE vehicles (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   company_id UUID REFERENCES companies(id) ON DELETE CASCADE,
@@ -239,7 +246,10 @@ CREATE TABLE vehicles (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 17. Furnaces
+-- ==========================================
+-- 5. KREMACJE I POGRZEBY
+-- ==========================================
+
 CREATE TABLE furnaces (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   company_id UUID REFERENCES companies(id) ON DELETE CASCADE,
@@ -248,7 +258,6 @@ CREATE TABLE furnaces (
   color TEXT
 );
 
--- 18. Cremation Option Groups & Options
 CREATE TABLE cremation_option_groups (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   company_id UUID REFERENCES companies(id) ON DELETE CASCADE,
@@ -264,7 +273,6 @@ CREATE TABLE cremation_options (
   is_default BOOLEAN DEFAULT FALSE
 );
 
--- 19. Cremations
 CREATE TABLE cremations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   company_id UUID REFERENCES companies(id) ON DELETE CASCADE,
@@ -284,7 +292,6 @@ CREATE TABLE cremations (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 20. Checklists
 CREATE TABLE checklists (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   company_id UUID REFERENCES companies(id) ON DELETE CASCADE,
@@ -294,7 +301,6 @@ CREATE TABLE checklists (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 21. Funerals
 CREATE TABLE funerals (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   company_id UUID REFERENCES companies(id) ON DELETE CASCADE,
@@ -322,7 +328,10 @@ CREATE TABLE funerals (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 22. Documents
+-- ==========================================
+-- 6. POZOSTAŁE (DOKUMENTY, GIEŁDA, MOTYWY)
+-- ==========================================
+
 CREATE TABLE doc_categories (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   company_id UUID REFERENCES companies(id) ON DELETE CASCADE,
@@ -339,26 +348,6 @@ CREATE TABLE doc_templates (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 23. Payroll Bonuses
-CREATE TABLE payroll_bonuses (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  company_id UUID REFERENCES companies(id) ON DELETE CASCADE,
-  branch_id UUID REFERENCES branches(id) ON DELETE SET NULL,
-  name TEXT NOT NULL,
-  amount NUMERIC DEFAULT 0
-);
-
-CREATE TABLE user_bonuses (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-  company_id UUID REFERENCES companies(id) ON DELETE CASCADE,
-  bonus_id UUID REFERENCES payroll_bonuses(id) ON DELETE SET NULL,
-  name TEXT,
-  amount NUMERIC,
-  timestamp TIMESTAMPTZ DEFAULT NOW()
-);
-
--- 24. Bulletin Board
 CREATE TABLE bulletin_categories (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
@@ -381,46 +370,36 @@ CREATE TABLE bulletin_ads (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- ==========================================
--- WYŁĄCZENIE RLS
--- ==========================================
-ALTER TABLE companies DISABLE ROW LEVEL SECURITY;
-ALTER TABLE branches DISABLE ROW LEVEL SECURITY;
-ALTER TABLE users DISABLE ROW LEVEL SECURITY;
-ALTER TABLE invitations DISABLE ROW LEVEL SECURITY;
-ALTER TABLE notifications DISABLE ROW LEVEL SECURITY;
-ALTER TABLE work_sessions DISABLE ROW LEVEL SECURITY;
-ALTER TABLE leave_requests DISABLE ROW LEVEL SECURITY;
-ALTER TABLE themes DISABLE ROW LEVEL SECURITY;
-ALTER TABLE manufacturers DISABLE ROW LEVEL SECURITY;
-ALTER TABLE warehouse_categories DISABLE ROW LEVEL SECURITY;
-ALTER TABLE warehouse_items DISABLE ROW LEVEL SECURITY;
-ALTER TABLE relations DISABLE ROW LEVEL SECURITY;
-ALTER TABLE coop_companies DISABLE ROW LEVEL SECURITY;
-ALTER TABLE company_tags DISABLE ROW LEVEL SECURITY;
-ALTER TABLE drivers DISABLE ROW LEVEL SECURITY;
-ALTER TABLE vehicles DISABLE ROW LEVEL SECURITY;
-ALTER TABLE furnaces DISABLE ROW LEVEL SECURITY;
-ALTER TABLE cremation_option_groups DISABLE ROW LEVEL SECURITY;
-ALTER TABLE cremation_options DISABLE ROW LEVEL SECURITY;
-ALTER TABLE cremations DISABLE ROW LEVEL SECURITY;
-ALTER TABLE checklists DISABLE ROW LEVEL SECURITY;
-ALTER TABLE funerals DISABLE ROW LEVEL SECURITY;
-ALTER TABLE doc_categories DISABLE ROW LEVEL SECURITY;
-ALTER TABLE doc_templates DISABLE ROW LEVEL SECURITY;
-ALTER TABLE payroll_bonuses DISABLE ROW LEVEL SECURITY;
-ALTER TABLE user_bonuses DISABLE ROW LEVEL SECURITY;
-ALTER TABLE bulletin_categories DISABLE ROW LEVEL SECURITY;
-ALTER TABLE bulletin_ads DISABLE ROW LEVEL SECURITY;
+CREATE TABLE themes (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  css_vars JSONB NOT NULL
+);
 
+-- ==========================================
+-- 7. WYŁĄCZENIE ZABEZPIECZEŃ (DLA TESTÓW)
+-- ==========================================
+-- Wyłączamy Row Level Security na wszystkich tabelach dla łatwiejszego developmentu
+DO $$ 
+DECLARE 
+    r RECORD; 
+BEGIN 
+    FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = 'public') LOOP 
+        EXECUTE 'ALTER TABLE ' || quote_ident(r.tablename) || ' DISABLE ROW LEVEL SECURITY'; 
+    END LOOP; 
+END $$;
+
+-- Nadanie uprawnień
 GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
 GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;
 GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated, service_role;
 GRANT ALL ON ALL ROUTINES IN SCHEMA public TO anon, authenticated, service_role;
 
 -- ==========================================
--- SEED DATA
+-- SEED DATA (DANE STARTOWE)
 -- ==========================================
+
+-- 1. Tworzenie SUPER ADMINA
 INSERT INTO users (
   role, 
   login, 
@@ -431,13 +410,28 @@ INSERT INTO users (
   preferences
 ) VALUES (
   'super_admin', 
-  'jogi', 
-  'jogi123', 
-  'Jogi', 
-  'Admin', 
-  'jogi@urneo.pl', 
+  'admin', 
+  'admin123', 
+  'Główny', 
+  'Administrator', 
+  'admin@urneo.pl', 
   '{"layoutMode": "sidebar"}'
 );
+
+-- 2. Opcjonalnie: Przykładowa Firma dla testów
+WITH new_company AS (
+  INSERT INTO companies (company_number, nip, name, street, city, zip_code, package_type)
+  VALUES ('U00001', '1234567890', 'Zakład Pogrzebowy "Wieczność"', 'ul. Cicha 1', 'Warszawa', '00-001', 'full')
+  RETURNING id
+),
+new_branch AS (
+  INSERT INTO branches (company_id, branch_number, name, street, city, zip_code)
+  SELECT id, 'U00001/1', 'Siedziba Główna', 'ul. Cicha 1', 'Warszawa', '00-001' FROM new_company
+  RETURNING id
+)
+INSERT INTO users (role, company_role, login, password, first_name, last_name, email, company_id, branch_id)
+SELECT 'client', 'owner', 'wlasciciel', 'wlasciciel123', 'Jan', 'Kowalski', 'jan@wiecznosc.pl', new_company.id, new_branch.id
+FROM new_company, new_branch;
   `;
 
   const copyToClipboard = () => {
@@ -446,31 +440,45 @@ INSERT INTO users (
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
       <Card className="w-full max-w-4xl h-[90vh] flex flex-col p-0 border-2 border-[var(--color-primary)] animate-fade-in relative">
         <div className="p-4 border-b border-[var(--color-border)] flex justify-between items-center bg-[var(--color-surface)]">
-          <h3 className="text-xl font-bold">Aktualizacja Bazy Danych (Supabase)</h3>
+          <div className="flex items-center gap-3">
+             <div className="p-2 bg-[var(--color-primary)] rounded-lg text-[var(--color-primary-foreground)]">
+                <Terminal size={20}/>
+             </div>
+             <div>
+                <h3 className="text-xl font-bold">Inicjalizacja Bazy Danych</h3>
+                <p className="text-xs text-[var(--color-text-secondary)]">Wymagane do działania aplikacji</p>
+             </div>
+          </div>
           <button onClick={onClose} className="p-2 hover:bg-[var(--color-surface-highlight)] rounded-full"><X size={20}/></button>
         </div>
         
         <div className="flex-1 overflow-y-auto p-6 bg-[#1e1e1e] text-gray-300 font-mono text-sm custom-scrollbar relative">
-          <div className="mb-4 bg-[var(--color-surface-highlight)] text-[var(--color-text-main)] p-4 rounded-lg border border-[var(--color-primary)] font-sans">
-            <h4 className="font-bold text-[var(--color-primary)] mb-2">Wymagana Aktualizacja!</h4>
-            <p className="mb-2">Aby funkcje statusów wniosków i numeracji klientów działały poprawnie, musisz zaktualizować schemat bazy.</p>
-            <ol className="list-decimal pl-5 space-y-1">
-              <li>Skopiuj poniższy kod SQL.</li>
-              <li>Wklej go w zakładce <strong>SQL Editor</strong> w Supabase.</li>
-              <li>Uruchom (Run). <strong>Uwaga: To usunie stare dane!</strong></li>
+          <div className="mb-6 bg-[var(--color-surface-highlight)] text-[var(--color-text-main)] p-4 rounded-lg border border-[var(--color-primary)] font-sans shadow-lg">
+            <h4 className="font-bold text-[var(--color-primary)] mb-2 flex items-center gap-2">🚀 Instrukcja Instalacji</h4>
+            <ol className="list-decimal pl-5 space-y-2 text-sm">
+              <li>Skopiuj poniższy kod SQL przyciskiem na dole.</li>
+              <li>Otwórz panel Supabase swojego projektu i przejdź do zakładki <strong>SQL Editor</strong>.</li>
+              <li>Wklej kod i kliknij <strong>Run</strong>.</li>
+              <li>Po wykonaniu skryptu zaloguj się danymi:</li>
             </ol>
+            <div className="mt-3 p-3 bg-black/20 rounded border border-[var(--color-border)] font-mono text-xs">
+               <div>Login: <strong className="text-[var(--color-primary)]">admin</strong></div>
+               <div>Hasło: <strong className="text-[var(--color-primary)]">admin123</strong></div>
+            </div>
           </div>
-          <pre className="whitespace-pre-wrap">{sqlSchema}</pre>
-          
-          <Button 
-            onClick={copyToClipboard}
-            className="fixed bottom-8 right-8 shadow-2xl z-50 bg-[var(--color-primary)] text-[var(--color-primary-foreground)]"
-          >
-            <Copy size={18} className="mr-2"/> Skopiuj SQL
-          </Button>
+          <pre className="whitespace-pre-wrap select-all">{sqlSchema}</pre>
+        </div>
+
+        <div className="p-4 border-t border-[var(--color-border)] bg-[var(--color-surface)] flex justify-end">
+           <Button 
+             onClick={copyToClipboard}
+             className="bg-[var(--color-primary)] text-[var(--color-primary-foreground)] font-bold shadow-lg hover:brightness-110"
+           >
+             <Copy size={18} className="mr-2"/> Skopiuj Kod SQL
+           </Button>
         </div>
       </Card>
     </div>

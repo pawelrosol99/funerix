@@ -146,7 +146,12 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, onNavigate }) => {
   const toggleAdminMode = () => {
      setIsAdminMode(!isAdminMode);
      setIsLogin(true); // Always login for admin
-     setFormData({ ...formData, login: '', password: '' });
+     // Pre-fill for convenience if switching TO admin mode
+     if (!isAdminMode) {
+        setFormData({ ...formData, login: 'admin', password: '' });
+     } else {
+        setFormData({ ...formData, login: '', password: '' });
+     }
   };
 
   return (
@@ -168,7 +173,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, onNavigate }) => {
         <div className="absolute top-4 right-4 flex gap-2">
            <button 
               onClick={() => setShowSql(true)} 
-              className="text-[var(--color-text-secondary)] hover:text-[var(--color-primary)] transition-colors"
+              className="text-[var(--color-text-secondary)] hover:text-[var(--color-primary)] transition-colors p-2 rounded-full hover:bg-[var(--color-surface-highlight)]"
               title="Instrukcja bazy danych"
            >
               <Database size={20}/>
@@ -299,7 +304,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, onNavigate }) => {
                            className="text-[10px] flex items-center gap-1 text-[var(--color-text-secondary)] hover:text-[var(--color-primary)] transition-colors opacity-70 hover:opacity-100"
                        >
                            <TerminalSquare size={12} />
-                           Reset Bazy Danych
+                           Instrukcja SQL / Reset Bazy
                        </button>
                    </div>
                 </div>
